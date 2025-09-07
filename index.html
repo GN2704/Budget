@@ -1,0 +1,3337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title data-i18n="title">Budget Planner</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
+    <style>
+        :root {
+    --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --border-radius: 8px;
+    --border-color: #e0e0e0;
+    --shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    --header-height: 40px;
+}
+
+.theme-pink {
+    --bg-primary: #FFFBFB;
+    --bg-secondary: #FFFFFF;
+    --text-primary: #333333;
+    --text-secondary: #777777;
+    --accent-primary: #FFC0CB; /* Light Pink */
+    --accent-secondary: #FFA5B5; /* Deeper Pink */
+    --accent-tertiary: #FF8FAB;
+    --header-bg: #FFE4E8;
+    --color-income: #FFB6C1;
+    --color-expenses: #FF69B4;
+    --color-bills: #DB7093;
+    --color-savings: #FFDAB9;
+    --color-debt: #FFA07A;
+    --color-budget: #DDA0DD;
+    --color-actual: #FF69B4;
+    --color-placeholder: #E0E0E0;
+}
+
+.theme-blue {
+    --bg-primary: #F7FAFC;
+    --bg-secondary: #FFFFFF;
+    --text-primary: #1A202C;
+    --text-secondary: #718096;
+    --accent-primary: #A0AEC0;
+    --accent-secondary: #718096;
+    --accent-tertiary: #4A5568;
+    --header-bg: #EBF8FF;
+    --color-income: #90CDF4;
+    --color-expenses: #4299E1;
+    --color-bills: #3182CE;
+    --color-savings: #A3BFFA;
+    --color-debt: #7F9CF5;
+    --color-budget: #B794F4;
+    --color-actual: #4299E1;
+    --color-placeholder: #E2E8F0;
+}
+
+*, *::before, *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: var(--font-family);
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    padding: 20px;
+    font-size: 14px;
+    transition: background-color 0.3s, color 0.3s;
+}
+
+.main-container {
+    display: grid;
+    grid-template-columns: 1fr 1.2fr 1.2fr;
+    gap: 20px;
+    max-width: 1600px;
+    margin: 0 auto;
+}
+
+.grid-column {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.panel {
+    background-color: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow);
+    display: flex;
+    flex-direction: column;
+}
+
+.panel-header {
+    background-color: var(--header-bg);
+    padding: 0 15px;
+    border-bottom: 1px solid var(--border-color);
+    font-weight: 600;
+    height: var(--header-height);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-top-left-radius: var(--border-radius);
+    border-top-right-radius: var(--border-radius);
+}
+
+.local-reset-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 16px;
+    color: var(--text-secondary);
+    opacity: 0.7;
+    padding: 5px;
+}
+.local-reset-btn:hover {
+    opacity: 1;
+}
+
+.panel-body {
+    padding: 15px;
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.panel-body--center {
+    align-items: center;
+    justify-content: center;
+}
+
+.chart-container {
+    position: relative;
+    width: 100%;
+    max-height: 200px;
+}
+.chart-placeholder {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: var(--text-secondary);
+    font-weight: 600;
+    display: none; /* Hidden by default */
+}
+.chart-placeholder.visible {
+    display: block;
+}
+
+.top-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    max-width: 1600px;
+    margin: 0 auto 20px auto;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.month-navigator, .action-buttons {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.language-currency-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+#month-selector, #language-selector, #currency-selector, button, input[type="number"] {
+    padding: 8px 12px;
+    border: 1px solid var(--border-color);
+    background-color: var(--bg-secondary);
+    color: var(--text-primary);
+    border-radius: 6px;
+    cursor: pointer;
+    font-family: var(--font-family);
+    font-size: 14px;
+}
+#month-selector, #language-selector, #currency-selector { -webkit-appearance: none; -moz-appearance: none; appearance: none; background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e"); background-position: right 0.5rem center; background-repeat: no-repeat; background-size: 1.5em 1.5em; padding-right: 2.5rem; }
+
+.theme-toggle {
+    font-size: 20px;
+    background: none;
+    border: none;
+}
+
+/* Dropdown Menu Styles */
+.dropdown {
+    position: relative;
+    display: inline-block;
+}
+
+.dropdown-content {
+    display: none;
+    position: absolute;
+    background-color: var(--bg-secondary);
+    min-width: 200px;
+    box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+    z-index: 1;
+    border-radius: var(--border-radius);
+    border: 1px solid var(--border-color);
+    padding: 5px 0;
+    right: 0; 
+}
+
+.dropdown-content button {
+    color: var(--text-primary);
+    padding: 10px 15px;
+    text-decoration: none;
+    display: block;
+    width: 100%;
+    text-align: left;
+    background: none;
+    border: none;
+    border-radius: 0;
+}
+
+.dropdown-content button:hover {
+    background-color: var(--header-bg);
+}
+
+.dropdown:hover .dropdown-content {
+    display: block;
+}
+
+#import-file { display: none; }
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+th, td {
+    text-align: left;
+    padding: 8px 6px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+th {
+    color: var(--text-secondary);
+    font-size: 12px;
+    font-weight: 500;
+    text-transform: uppercase;
+}
+
+td {
+    height: 36px;
+}
+
+td input {
+    width: 100%;
+    border: none;
+    background-color: transparent;
+    font-family: var(--font-family);
+    font-size: 14px;
+    padding: 4px;
+    border-radius: 4px;
+}
+td input:focus {
+    outline: none;
+    background-color: var(--header-bg);
+    box-shadow: 0 0 0 2px var(--accent-secondary);
+}
+
+.overview-table td:first-child, .cash-flow-table td:first-child {
+    font-weight: 500;
+}
+.overview-table input {
+    text-align: right;
+}
+
+.total-row td {
+    font-weight: bold;
+    border-top: 2px solid var(--text-primary);
+    border-bottom: none;
+}
+
+.currency {
+    color: var(--text-secondary);
+    margin-right: 2px;
+}
+
+#amount-left-to-spend-value {
+    font-size: 48px;
+    font-weight: 700;
+    color: var(--accent-tertiary);
+    margin-bottom: 15px;
+}
+
+.income-donut-container {
+    position: relative;
+    width: 150px;
+    height: 150px;
+}
+.income-donut-label {
+     position: absolute;
+     top: 50%;
+     left: 50%;
+     transform: translate(-50%, -50%);
+     font-weight: 600;
+     color: var(--text-secondary);
+}
+
+.top-summary-strip {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1px;
+    background-color: var(--border-color);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    overflow: hidden;
+}
+
+.top-summary-item {
+    background-color: var(--bg-secondary);
+    padding: 10px 15px;
+}
+
+.top-summary-item h3 {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    margin-bottom: 4px;
+    text-transform: uppercase;
+}
+
+.top-summary-item p {
+    font-size: 20px;
+    font-weight: 600;
+}
+
+.note {
+    font-size: 13px;
+    font-style: italic;
+    color: var(--text-secondary);
+    margin-top: auto; /* Pushes note to bottom */
+    padding-top: 10px;
+}
+
+.checkbox-cell {
+    width: 30px;
+    text-align: center;
+}
+
+.bills-table input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    accent-color: var(--accent-tertiary);
+}
+
+.left-col {
+    font-weight: 500;
+    color: green;
+}
+.left-col.negative {
+    color: red;
+}
+
+#import-file { display: none; }
+
+.shopping-sites-panel {
+    min-height: 200px;
+}
+
+.add-site-form {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 15px;
+    flex-wrap: wrap;
+}
+
+.add-site-form input {
+    padding: 6px 8px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    font-size: 14px;
+    background-color: var(--bg-secondary);
+    color: var(--text-primary);
+}
+
+.add-site-form input[placeholder="Store Name"] {
+    flex: 1;
+    min-width: 120px;
+}
+
+.add-site-form input[placeholder="URL"] {
+    flex: 2;
+    min-width: 200px;
+}
+
+.add-site-btn {
+    padding: 6px 12px;
+    background-color: var(--accent-secondary);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.add-site-btn:hover {
+    background-color: var(--accent-tertiary);
+}
+
+.shopping-links {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.shopping-link {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    background-color: var(--header-bg);
+    border-radius: 4px;
+    border: 1px solid var(--border-color);
+}
+
+.shopping-link a {
+    color: var(--accent-tertiary);
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.shopping-link a:hover {
+    text-decoration: underline;
+}
+
+.remove-site-btn {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-size: 16px;
+    padding: 2px 4px;
+}
+
+.remove-site-btn:hover {
+    color: red;
+}
+
+/* EXPENSE TRACKER STYLES */
+.expense-tracker-panel .panel-body {
+    padding: 5px 15px 15px 15px;
+}
+.expense-tracker-table {
+    table-layout: fixed;
+}
+.expense-tracker-table th {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 10px 4px;
+}
+.expense-tracker-table td {
+    padding: 2px 4px;
+    vertical-align: middle;
+}
+.expense-tracker-table td input {
+    background-color: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    padding: 6px 8px;
+    height: 34px;
+}
+ .expense-tracker-table td input:focus {
+    box-shadow: 0 0 0 2px var(--accent-tertiary);
+}
+
+.expense-tracker-table .col-date { width: 18%; }
+.expense-tracker-table .col-category { width: 28%; }
+.expense-tracker-table .col-amount { width: 22%; }
+.expense-tracker-table .col-note { width: 27%; }
+.expense-tracker-table .col-actions { width: 5%; }
+
+.delete-row-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 20px;
+    cursor: pointer;
+    padding: 0 5px;
+    opacity: 0.6;
+    line-height: 1;
+}
+.delete-row-btn:hover {
+    color: #ff0000;
+    opacity: 1;
+}
+
+.add-row-container {
+    text-align: right;
+    padding-top: 10px;
+}
+#add-expense-row-btn {
+    background-color: var(--accent-secondary);
+    color: white;
+    border: none;
+}
+#add-expense-row-btn:hover {
+    background-color: var(--accent-tertiary);
+}
+
+.status-indicator {
+    margin-left: 8px;
+    font-size: 12px;
+    opacity: 0.7;
+}
+.status-indicator.saved {
+    color: green;
+}
+.status-indicator.saving {
+    color: orange;
+}
+
+/* === LAYOUT STYLES === */
+
+.panel-overview { grid-area: overview; }
+.panel-cfs { grid-area: cfs; }
+.panel-savings { grid-area: savings; }
+.panel-shopping { grid-area: shopping; }
+.panel-amount-left { grid-area: amount-left; }
+.panel-income { grid-area: income; }
+.panel-bills { grid-area: bills; }
+.panel-tracker { grid-area: tracker; }
+.panel-top-summary { grid-area: top-summary; }
+.panel-bva { grid-area: bva; }
+.panel-cf-pie { grid-area: cf-pie; }
+.panel-expenses { grid-area: expenses; }
+.panel-debt { grid-area: debt; }
+
+.layout-btn.active {
+    outline: 2px solid var(--accent-tertiary);
+    border-color: var(--accent-tertiary);
+    box-shadow: 0 0 5px var(--accent-tertiary);
+}
+
+body.layout-tablet .grid-column,
+body.layout-mobile .grid-column {
+    display: contents;
+}
+
+body.layout-tablet .main-container {
+    grid-template-columns: 1fr 1.5fr;
+    gap: 25px; /* Increased gap for tablet */
+    grid-template-areas:
+        "amount-left  overview"
+        "top-summary  cfs"
+        "bva          income"
+        "cf-pie       expenses"
+        "bills        bills" /* Span bills */
+        "savings      savings" /* Span savings */
+        "debt         debt" /* Span debt */
+        "tracker      tracker" /* Span tracker */
+        "shopping     shopping"; /* Span shopping */
+}
+
+body.layout-mobile .main-container {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+        "amount-left"
+        "top-summary"
+        "bva"
+        "cf-pie"
+        "income"
+        "expenses"
+        "bills"
+        "savings"
+        "debt"
+        "tracker"
+        "overview"
+        "cfs"
+        "shopping";
+}
+
+/* === RESPONSIVE FIXES FOR MOBILE & SAFARI === */
+
+/* Wrapper for tables that might overflow on small screens */
+.table-scroll-wrapper {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+}
+
+/* SAMO styling promene na malim ekranima - NE forsiraju layout promene */
+@media (max-width: 768px) {
+    body {
+        padding: 10px;
+    }
+    .main-container {
+        gap: 15px;
+    }
+    #amount-left-to-spend-value {
+        font-size: 36px;
+    }
+    .top-summary-item p {
+        font-size: 18px;
+    }
+}
+
+@media (max-width: 480px) {
+    .top-controls {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    #amount-left-to-spend-value {
+        font-size: 32px;
+    }
+    
+    /* Allow expense tracker columns to resize naturally */
+    .expense-tracker-table {
+        table-layout: auto;
+    }
+    .expense-tracker-table .col-date,
+    .expense-tracker-table .col-category,
+    .expense-tracker-table .col-amount,
+    .expense-tracker-table .col-note,
+    .expense-tracker-table .col-actions {
+        width: auto; /* Remove fixed widths */
+    }
+}
+    </style>
+</head>
+<body class="theme-pink">
+
+    <header class="top-controls">
+        <div class="month-navigator">
+            <button id="prev-month">&lt;</button>
+            <select id="month-selector"></select>
+            <input type="number" id="year-selector" min="2000" max="2100" style="width: 70px;">
+            <button id="next-month">&gt;</button>
+            <span id="save-status" class="status-indicator"></span>
+        </div>
+        <div class="language-currency-controls">
+            <select id="language-selector" title="Language">
+                <option value="en">🇺🇸 English</option>
+                <option value="de">🇩🇪 Deutsch</option>
+                <option value="fr">🇫🇷 Français</option>
+                <option value="es">🇪🇸 Español</option>
+                <option value="it">🇮🇹 Italiano</option>
+                <option value="pt">🇵🇹 Português</option>
+                <option value="ru">🇷🇺 Русский</option>
+                <option value="pl">🇵🇱 Polski</option>
+                <option value="nl">🇳🇱 Nederlands</option>
+                <option value="sv">🇸🇪 Svenska</option>
+                <option value="tr">🇹🇷 Türkçe</option>
+                <option value="zh">🇨🇳 中文</option>
+                <option value="ja">🇯🇵 日本語</option>
+                <option value="ar">🇸🇦 العربية</option>
+                <option value="hi">🇮🇳 हिंदी</option>
+            </select>
+            <select id="currency-selector" title="Currency">
+                <option value="EUR">EUR €</option>
+                <option value="USD">USD $</option>
+                <option value="GBP">GBP £</option>
+                <option value="JPY">JPY ¥</option>
+                <option value="CAD">CAD CA$</option>
+                <option value="AUD">AUD A$</option>
+                <option value="CHF">CHF CHF</option>
+                <option value="NOK">NOK kr</option>
+                <option value="SEK">SEK kr</option>
+                <option value="PLN">PLN zł</option>
+                <option value="RUB">RUB ₽</option>
+                <option value="CNY">CNY ¥</option>
+                <option value="INR">INR ₹</option>
+                <option value="TRY">TRY ₺</option>
+                <option value="AED">AED د.إ</option>
+            </select>
+        </div>
+        <div class="action-buttons">
+            <button id="reset-amounts-btn" data-i18n="reset_amounts">Reset Amounts</button>
+            <button id="reset-month-btn" data-i18n="reset_month">Reset Month</button>
+            
+            <div class="dropdown">
+                <button id="data-actions-btn" data-i18n="data_actions">Data Actions ▾</button>
+                <div class="dropdown-content">
+                    <button id="export-html-btn" data-i18n="export_complete_app">Export Complete App</button>
+                    <button id="export-csv-btn" data-i18n="export_month_data">Export Month Data</button>
+                    <input type="file" id="import-file" accept=".csv" />
+                    <button id="import-btn" data-i18n="import_month_data">Import Month Data</button>
+                </div>
+            </div>
+
+            <button id="clear-all-btn" data-i18n="clear_all_data">Clear All Data</button>
+            <button id="theme-toggle" class="theme-toggle" aria-label="Toggle theme">☀️</button>
+            <button id="layout-desktop-btn" class="layout-btn" title="Desktop Layout">💻</button>
+            <button id="layout-tablet-btn" class="layout-btn" title="Tablet Layout">🖥️</button>
+            <button id="layout-mobile-btn" class="layout-btn" title="Mobile Layout">📱</button>
+        </div>
+    </header>
+
+    <div class="main-container">
+        <div class="grid-column">
+            <div class="panel panel-overview">
+                <div class="panel-header" data-i18n="overview">OVERVIEW</div>
+                <div class="panel-body">
+                    <table class="overview-table">
+                        <tbody>
+                            <tr>
+                                <td data-i18n="start_date">START DATE</td>
+                                <td><input type="text" id="start-date" value="1 August 2025"></td>
+                            </tr>
+                            <tr>
+                                <td data-i18n="end_date">END DATE</td>
+                                <td><input type="text" id="end-date" value="31 August 2025"></td>
+                            </tr>
+                            <tr>
+                                <td data-i18n="start_balance">START BALANCE</td>
+                                <td><span class="currency">€</span><input type="number" step="0.01" class="number-input" id="start-balance" value="0.00"></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="panel panel-cfs">
+                <div class="panel-header" data-i18n="cash_flow_summary">CASH FLOW SUMMARY</div>
+                <div class="panel-body">
+                    <div class="table-scroll-wrapper">
+                        <table class="cash-flow-table">
+                            <thead>
+                                <tr>
+                                    <th></th>
+                                    <th data-i18n="budget">Budget</th>
+                                    <th data-i18n="actual">Actual</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr><td data-i18n="start_balance">Start Balance</td><td id="cfs-start-balance-budget" colspan="2">€ 0.00</td></tr>
+                                <tr><td data-i18n="income">Income</td><td id="cfs-income-budget">€ 0.00</td><td id="cfs-income-actual">€ 0.00</td></tr>
+                                <tr><td data-i18n="expenses">Expenses</td><td id="cfs-expenses-budget">€ 0.00</td><td id="cfs-expenses-actual">€ 0.00</td></tr>
+                                <tr><td data-i18n="savings">Savings</td><td id="cfs-savings-budget">€ 0.00</td><td id="cfs-savings-actual">€ 0.00</td></tr>
+                                <tr><td data-i18n="debt">Debt</td><td id="cfs-debt-budget">€ 0.00</td><td id="cfs-debt-actual">€ 0.00</td></tr>
+                                <tr><td data-i18n="bills">Bills</td><td id="cfs-bills-budget">€ 0.00</td><td id="cfs-bills-actual">€ 0.00</td></tr>
+                            </tbody>
+                            <tfoot>
+                                 <tr class="total-row"><td data-i18n="total_leftover">Total Leftover</td><td id="cfs-leftover-budget">€ 0.00</td><td id="cfs-leftover-actual">€ 0.00</td></tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="panel panel-savings">
+                <div class="panel-header">
+                    <span data-i18n="savings_summary">SAVINGS SUMMARY</span>
+                    <button class="local-reset-btn" data-target="savings" data-i18n-title="reset_savings_amounts" title="Reset savings amounts">🔄</button>
+                </div>
+                <div class="panel-body">
+                    <div class="table-scroll-wrapper">
+                        <table id="savings-table">
+                            <thead><tr><th data-i18n="description">Description</th><th data-i18n="budget">Budget</th><th data-i18n="actual">Actual</th></tr></thead>
+                            <tbody></tbody>
+                            <tfoot><tr class="total-row"><td data-i18n="total">Total</td><td id="savings-budget-total">€ 0.00</td><td id="savings-actual-total">€ 0.00</td></tr></tfoot>
+                        </table>
+                    </div>
+                    <p class="note" data-i18n="set_savings_goals">Set your savings goals here</p>
+                </div>
+            </div>
+
+            <div class="panel shopping-sites-panel panel-shopping">
+                <div class="panel-header">
+                    <span data-i18n="favorite_shopping_sites">FAVORITE SHOPPING SITES</span>
+                </div>
+                <div class="panel-body">
+                    <div class="add-site-form">
+                        <input type="text" id="store-name-input" data-i18n-placeholder="store_name" placeholder="Store Name">
+                        <input type="url" id="store-url-input" placeholder="URL">
+                        <button class="add-site-btn" id="add-site-btn" data-i18n="add">Add</button>
+                    </div>
+                    <div class="shopping-links" id="shopping-links"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid-column">
+            <div class="panel panel-amount-left">
+                 <div class="panel-header" data-i18n="amount_left_to_spend">AMOUNT LEFT TO SPEND</div>
+                 <div class="panel-body panel-body--center">
+                    <p id="amount-left-to-spend-value">€ 0.00</p>
+                    <div class="income-donut-container">
+                        <canvas id="incomeDonutChart"></canvas>
+                        <div class="income-donut-label" data-i18n="income">Income</div>
+                    </div>
+                 </div>
+            </div>
+            
+            <div class="panel panel-income">
+                <div class="panel-header">
+                    <span data-i18n="income_summary">INCOME SUMMARY</span>
+                    <button class="local-reset-btn" data-target="income" data-i18n-title="reset_income_amounts" title="Reset income amounts">🔄</button>
+                </div>
+                <div class="panel-body">
+                    <div class="table-scroll-wrapper">
+                        <table id="income-table">
+                            <thead><tr><th data-i18n="description">Description</th><th data-i18n="budget">Budget</th><th data-i18n="actual">Actual</th></tr></thead>
+                            <tbody></tbody>
+                            <tfoot><tr class="total-row"><td data-i18n="total">Total</td><td id="income-budget-total">€ 0.00</td><td id="income-actual-total">€ 0.00</td></tr></tfoot>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="panel panel-bills">
+                <div class="panel-header">
+                    <span data-i18n="bills_summary">BILLS SUMMARY</span>
+                    <button class="local-reset-btn" data-target="bills" data-i18n-title="reset_bill_amounts" title="Reset bill amounts">🔄</button>
+                </div>
+                <div class="panel-body">
+                    <div class="table-scroll-wrapper">
+                        <table class="bills-table" id="bills-table">
+                            <thead><tr><th class="checkbox-cell" data-i18n="paid">Paid</th><th data-i18n="due">Due</th><th data-i18n="description">Description</th><th data-i18n="budget">Budget</th><th data-i18n="actual">Actual</th></tr></thead>
+                            <tbody></tbody>
+                            <tfoot><tr class="total-row"><td></td><td colspan="2" data-i18n="total">Total</td><td id="bills-budget-total">€ 0.00</td><td id="bills-actual-total">€ 0.00</td></tr></tfoot>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel expense-tracker-panel panel-tracker">
+                 <div class="panel-header">
+                    <span data-i18n="expense_tracker">EXPENSE TRACKER</span>
+                </div>
+                <div class="panel-body">
+                    <div class="table-scroll-wrapper">
+                        <table class="expense-tracker-table" id="expense-tracker-table">
+                            <thead>
+                                <tr>
+                                    <th class="col-date" data-i18n="date">DATE</th>
+                                    <th class="col-category" data-i18n="category">CATEGORY</th>
+                                    <th class="col-amount" data-i18n="amount">AMOUNT</th>
+                                    <th class="col-note" data-i18n="note">NOTE</th>
+                                    <th class="col-actions"></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="add-row-container">
+                        <button id="add-expense-row-btn" data-i18n="add_item">Add Item</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="grid-column">
+             <div class="top-summary-strip panel-top-summary">
+                <div class="top-summary-item">
+                    <h3 data-i18n="income">INCOME</h3>
+                    <p id="top-income">€ 0.00</p>
+                </div>
+                <div class="top-summary-item">
+                    <h3 data-i18n="bills">BILLS</h3>
+                    <p id="top-bills">€ 0.00</p>
+                </div>
+                <div class="top-summary-item">
+                    <h3 data-i18n="expenses">EXPENSES</h3>
+                    <p id="top-expenses">€ 0.00</p>
+                </div>
+            </div>
+
+            <div class="panel panel-bva">
+                <div class="panel-header" data-i18n="budget_vs_actual">BUDGET VS ACTUAL</div>
+                <div class="panel-body"><canvas id="budgetVsActualChart"></canvas></div>
+            </div>
+
+            <div class="panel panel-cf-pie">
+                <div class="panel-header" data-i18n="cash_flow_summary">CASH FLOW SUMMARY</div>
+                <div class="panel-body panel-body--center">
+                    <div class="chart-container">
+                        <canvas id="cashFlowPieChart"></canvas>
+                        <div id="cashFlowPiePlaceholder" class="chart-placeholder" data-i18n="no_data">No data</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel panel-expenses">
+                <div class="panel-header">
+                    <span data-i18n="expenses_summary">EXPENSES SUMMARY</span>
+                    <button class="local-reset-btn" data-target="expenses" data-i18n-title="reset_expense_amounts" title="Reset expense amounts">🔄</button>
+                </div>
+                <div class="panel-body">
+                    <div class="table-scroll-wrapper">
+                        <table id="expenses-table">
+                            <thead><tr><th data-i18n="description">Description</th><th data-i18n="budget">Budget</th><th data-i18n="actual">Actual</th><th data-i18n="left">Left</th></tr></thead>
+                            <tbody></tbody>
+                            <tfoot><tr class="total-row"><td data-i18n="total">Total</td><td id="expenses-budget-total">€ 0.00</td><td id="expenses-actual-total">€ 0.00</td><td></td></tr></tfoot>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="panel panel-debt">
+                <div class="panel-header">
+                    <span data-i18n="debt_summary">DEBT SUMMARY</span>
+                    <button class="local-reset-btn" data-target="debt" data-i18n-title="reset_debt_amounts" title="Reset debt amounts">🔄</button>
+                </div>
+                <div class="panel-body">
+                    <div class="table-scroll-wrapper">
+                        <table id="debt-table">
+                            <thead><tr><th data-i18n="description">Description</th><th data-i18n="due">Due</th><th data-i18n="budget">Budget</th><th data-i18n="actual">Actual</th></tr></thead>
+                            <tbody></tbody>
+                            <tfoot><tr class="total-row"><td colspan="2" data-i18n="total">Total</td><td id="debt-budget-total">€ 0.00</td><td id="debt-actual-total">€ 0.00</td></tr></tfoot>
+                        </table>
+                    </div>
+                     <p class="note" style="text-align: right;">Made by Cyb3erGN</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+<script>
+// =================================================================================
+// PASTE CONTENT FROM PART 2 HERE
+// =================================================================================
+
+// =================================================================================
+// SECTION 1: CORE CONFIGURATION & GLOBAL HELPERS
+// These variables and functions are defined first and are available globally within this script.
+// They handle translations and currency formatting.
+// =================================================================================
+
+const TRANSLATIONS = {
+    en: {
+        title: 'Budget Planner',
+        overview: 'OVERVIEW',
+        start_date: 'START DATE',
+        end_date: 'END DATE',
+        start_balance: 'START BALANCE',
+        cash_flow_summary: 'CASH FLOW SUMMARY',
+        budget: 'Budget',
+        actual: 'Actual',
+        income: 'Income',
+        expenses: 'Expenses',
+        savings: 'Savings',
+        debt: 'Debt',
+        bills: 'Bills',
+        total_leftover: 'Total Leftover',
+        savings_summary: 'SAVINGS SUMMARY',
+        description: 'Description',
+        total: 'Total',
+        set_savings_goals: 'Set your savings goals here',
+        favorite_shopping_sites: 'FAVORITE SHOPPING SITES',
+        store_name: 'Store Name',
+        add: 'Add',
+        amount_left_to_spend: 'AMOUNT LEFT TO SPEND',
+        income_summary: 'INCOME SUMMARY',
+        bills_summary: 'BILLS SUMMARY',
+        paid: 'Paid',
+        due: 'Due',
+        expense_tracker: 'EXPENSE TRACKER',
+        date: 'DATE',
+        category: 'CATEGORY',
+        amount: 'AMOUNT',
+        note: 'NOTE',
+        add_item: 'Add Item',
+        budget_vs_actual: 'BUDGET VS ACTUAL',
+        no_data: 'No data',
+        expenses_summary: 'EXPENSES SUMMARY',
+        left: 'Left',
+        debt_summary: 'DEBT SUMMARY',
+        reset_amounts: 'Reset Amounts',
+        reset_month: 'Reset Month',
+        data_actions: 'Data Actions ▾',
+        export_complete_app: 'Export Complete App',
+        export_month_data: 'Export Month Data',
+        import_month_data: 'Import Month Data',
+        clear_all_data: 'Clear All Data',
+        reset_savings_amounts: 'Reset savings amounts',
+        reset_income_amounts: 'Reset income amounts',
+        reset_bill_amounts: 'Reset bill amounts',
+        reset_expense_amounts: 'Reset expense amounts',
+        reset_debt_amounts: 'Reset debt amounts',
+        // Default descriptions
+        default_salary: 'Salary',
+        default_freelance: 'Freelance',
+        default_rent: 'Rent',
+        default_gas: 'Gas',
+        default_electricity: 'Electricity',
+        default_water: 'Water',
+        default_broadband: 'Broadband',
+        default_phone: 'Phone',
+        default_tax: 'Tax',
+        default_food: 'Food',
+        default_fuel: 'Fuel',
+        default_takeaway: 'Takeaway',
+        default_supplements: 'Supplements',
+        default_housekeeping: 'Housekeeping',
+        default_makeup: 'Makeup',
+        default_emergency_fund: 'Emergency Fund',
+        default_vacation: 'Vacation',
+        default_retirement: 'Retirement Fund',
+        default_bank_loan: 'Bank loan',
+        // Expense tracker defaults
+        default_cat_groceries: 'Groceries',
+        default_note_groceries: 'Weekly shop',
+        default_cat_transport: 'Transport',
+        default_note_transport: 'Tickets',
+        default_cat_entertainment: 'Entertainment',
+        default_note_entertainment: 'Cinema',
+        default_cat_shopping: 'Shopping',
+        default_note_shopping: 'Clothes'
+    },
+    de: {
+        title: 'Budget Planer',
+        overview: 'ÜBERSICHT',
+        start_date: 'STARTDATUM',
+        end_date: 'ENDDATUM',
+        start_balance: 'STARTGUTHABEN',
+        cash_flow_summary: 'CASHFLOW ZUSAMMENFASSUNG',
+        budget: 'Budget',
+        actual: 'Tatsächlich',
+        income: 'Einkommen',
+        expenses: 'Ausgaben',
+        savings: 'Ersparnisse',
+        debt: 'Schulden',
+        bills: 'Rechnungen',
+        total_leftover: 'Gesamt Übrig',
+        savings_summary: 'ERSPARNISSE ZUSAMMENFASSUNG',
+        description: 'Beschreibung',
+        total: 'Gesamt',
+        set_savings_goals: 'Setzen Sie hier Ihre Sparziele',
+        favorite_shopping_sites: 'LIEBLINGS SHOPPING SEITEN',
+        store_name: 'Shop Name',
+        add: 'Hinzufügen',
+        amount_left_to_spend: 'VERFÜGBARER BETRAG',
+        income_summary: 'EINKOMMEN ZUSAMMENFASSUNG',
+        bills_summary: 'RECHNUNGEN ZUSAMMENFASSUNG',
+        paid: 'Bezahlt',
+        due: 'Fällig',
+        expense_tracker: 'AUSGABEN TRACKER',
+        date: 'DATUM',
+        category: 'KATEGORIE',
+        amount: 'BETRAG',
+        note: 'NOTIZ',
+        add_item: 'Element hinzufügen',
+        budget_vs_actual: 'BUDGET VS TATSÄCHLICH',
+        no_data: 'Keine Daten',
+        expenses_summary: 'AUSGABEN ZUSAMMENFASSUNG',
+        left: 'Übrig',
+        debt_summary: 'SCHULDEN ZUSAMMENFASSUNG',
+        reset_amounts: 'Beträge zurücksetzen',
+        reset_month: 'Monat zurücksetzen',
+        data_actions: 'Datenaktionen ▾',
+        export_complete_app: 'App exportieren',
+        export_month_data: 'Monatsdaten exportieren',
+        import_month_data: 'Monatsdaten importieren',
+        clear_all_data: 'Alle Daten löschen',
+        reset_savings_amounts: 'Sparkonten zurücksetzen',
+        reset_income_amounts: 'Einkommen zurücksetzen',
+        reset_bill_amounts: 'Rechnungen zurücksetzen',
+        reset_expense_amounts: 'Ausgaben zurücksetzen',
+        reset_debt_amounts: 'Schulden zurücksetzen',
+        // Default descriptions
+        default_salary: 'Gehalt',
+        default_freelance: 'Freiberuflich',
+        default_rent: 'Miete',
+        default_gas: 'Gas',
+        default_electricity: 'Strom',
+        default_water: 'Wasser',
+        default_broadband: 'Internet',
+        default_phone: 'Telefon',
+        default_tax: 'Steuer',
+        default_food: 'Lebensmittel',
+        default_fuel: 'Treibstoff',
+        default_takeaway: 'Essen zum Mitnehmen',
+        default_supplements: 'Nahrungsergänzungsmittel',
+        default_housekeeping: 'Haushaltsführung',
+        default_makeup: 'Make-up',
+        default_emergency_fund: 'Notfallfonds',
+        default_vacation: 'Urlaub',
+        default_retirement: 'Altersvorsorge',
+        default_bank_loan: 'Bankdarlehen',
+        // Expense tracker defaults
+        default_cat_groceries: 'Lebensmittel',
+        default_note_groceries: 'Wocheneinkauf',
+        default_cat_transport: 'Transport',
+        default_note_transport: 'Fahrkarten',
+        default_cat_entertainment: 'Unterhaltung',
+        default_note_entertainment: 'Kino',
+        default_cat_shopping: 'Einkaufen',
+        default_note_shopping: 'Kleidung'
+    },
+    fr: {
+        title: 'Planificateur de Budget',
+        overview: 'APERÇU',
+        start_date: 'DATE DE DÉBUT',
+        end_date: 'DATE DE FIN',
+        start_balance: 'SOLDE INITIAL',
+        cash_flow_summary: 'RÉSUMÉ DES FLUX DE TRÉSORERIE',
+        budget: 'Budget',
+        actual: 'Réel',
+        income: 'Revenus',
+        expenses: 'Dépenses',
+        savings: 'Épargne',
+        debt: 'Dettes',
+        bills: 'Factures',
+        total_leftover: 'Total Restant',
+        savings_summary: 'RÉSUMÉ DE L\'ÉPARGNE',
+        description: 'Description',
+        total: 'Total',
+        set_savings_goals: 'Définissez vos objectifs d\'épargne ici',
+        favorite_shopping_sites: 'SITES D\'ACHAT FAVORIS',
+        store_name: 'Nom du Magasin',
+        add: 'Ajouter',
+        amount_left_to_spend: 'MONTANT RESTANT À DÉPENSER',
+        income_summary: 'RÉSUMÉ DES REVENUS',
+        bills_summary: 'RÉSUMÉ DES FACTURES',
+        paid: 'Payé',
+        due: 'Échéance',
+        expense_tracker: 'SUIVI DES DÉPENSES',
+        date: 'DATE',
+        category: 'CATÉGORIE',
+        amount: 'MONTANT',
+        note: 'NOTE',
+        add_item: 'Ajouter un élément',
+        budget_vs_actual: 'BUDGET VS RÉEL',
+        no_data: 'Aucune donnée',
+        expenses_summary: 'RÉSUMÉ DES DÉPENSES',
+        left: 'Restant',
+        debt_summary: 'RÉSUMÉ DES DETTES',
+        reset_amounts: 'Réinitialiser les montants',
+        reset_month: 'Réinitialiser le mois',
+        data_actions: 'Actions sur les données ▾',
+        export_complete_app: 'Exporter l\'app complète',
+        export_month_data: 'Exporter les données du mois',
+        import_month_data: 'Importer les données du mois',
+        clear_all_data: 'Effacer toutes les données',
+        reset_savings_amounts: 'Réinitialiser l\'épargne',
+        reset_income_amounts: 'Réinitialiser les revenus',
+        reset_bill_amounts: 'Réinitialiser les factures',
+        reset_expense_amounts: 'Réinitialiser les dépenses',
+        reset_debt_amounts: 'Réinitialiser les dettes',
+        // Default descriptions
+        default_salary: 'Salaire',
+        default_freelance: 'Indépendant',
+        default_rent: 'Loyer',
+        default_gas: 'Gaz',
+        default_electricity: 'Électricité',
+        default_water: 'Eau',
+        default_broadband: 'Internet',
+        default_phone: 'Téléphone',
+        default_tax: 'Impôt',
+        default_food: 'Nourriture',
+        default_fuel: 'Carburant',
+        default_takeaway: 'À emporter',
+        default_supplements: 'Suppléments',
+        default_housekeeping: 'Ménage',
+        default_makeup: 'Maquillage',
+        default_emergency_fund: 'Fonds d\'urgence',
+        default_vacation: 'Vacances',
+        default_retirement: 'Fonds de retraite',
+        default_bank_loan: 'Prêt bancaire',
+        // Expense tracker defaults
+        default_cat_groceries: 'Courses',
+        default_note_groceries: 'Achats de la semaine',
+        default_cat_transport: 'Transport',
+        default_note_transport: 'Billets',
+        default_cat_entertainment: 'Divertissement',
+        default_note_entertainment: 'Cinéma',
+        default_cat_shopping: 'Shopping',
+        default_note_shopping: 'Vêtements'
+    },
+    es: {
+        title: 'Planificador de Presupuesto',
+        overview: 'RESUMEN',
+        start_date: 'FECHA DE INICIO',
+        end_date: 'FECHA DE FIN',
+        start_balance: 'SALDO INICIAL',
+        cash_flow_summary: 'RESUMEN DE FLUJO DE EFECTIVO',
+        budget: 'Presupuesto',
+        actual: 'Real',
+        income: 'Ingresos',
+        expenses: 'Gastos',
+        savings: 'Ahorros',
+        debt: 'Deuda',
+        bills: 'Facturas',
+        total_leftover: 'Total Restante',
+        savings_summary: 'RESUMEN DE AHORROS',
+        description: 'Descripción',
+        total: 'Total',
+        set_savings_goals: 'Establece tus metas de ahorro aquí',
+        favorite_shopping_sites: 'SITIOS DE COMPRAS FAVORITOS',
+        store_name: 'Nombre de la Tienda',
+        add: 'Agregar',
+        amount_left_to_spend: 'CANTIDAD RESTANTE PARA GASTAR',
+        income_summary: 'RESUMEN DE INGRESOS',
+        bills_summary: 'RESUMEN DE FACTURAS',
+        paid: 'Pagado',
+        due: 'Vencimiento',
+        expense_tracker: 'RASTREADOR DE GASTOS',
+        date: 'FECHA',
+        category: 'CATEGORÍA',
+        amount: 'CANTIDAD',
+        note: 'NOTA',
+        add_item: 'Agregar elemento',
+        budget_vs_actual: 'PRESUPUESTO VS REAL',
+        no_data: 'Sin datos',
+        expenses_summary: 'RESUMEN DE GASTOS',
+        left: 'Restante',
+        debt_summary: 'RESUMEN DE DEUDA',
+        reset_amounts: 'Restablecer cantidades',
+        reset_month: 'Restablecer mes',
+        data_actions: 'Acciones de datos ▾',
+        export_complete_app: 'Exportar app completa',
+        export_month_data: 'Exportar datos del mes',
+        import_month_data: 'Importar datos del mes',
+        clear_all_data: 'Borrar todos los datos',
+        reset_savings_amounts: 'Restablecer ahorros',
+        reset_income_amounts: 'Restablecer ingresos',
+        reset_bill_amounts: 'Restablecer facturas',
+        reset_expense_amounts: 'Restablecer gastos',
+        reset_debt_amounts: 'Restablecer deudas',
+        // Default descriptions
+        default_salary: 'Salario',
+        default_freelance: 'Autónomo',
+        default_rent: 'Alquiler',
+        default_gas: 'Gas',
+        default_electricity: 'Electricidad',
+        default_water: 'Agua',
+        default_broadband: 'Internet',
+        default_phone: 'Teléfono',
+        default_tax: 'Impuestos',
+        default_food: 'Comida',
+        default_fuel: 'Combustible',
+        default_takeaway: 'Comida para llevar',
+        default_supplements: 'Suplementos',
+        default_housekeeping: 'Limpieza',
+        default_makeup: 'Maquillaje',
+        default_emergency_fund: 'Fondo de emergencia',
+        default_vacation: 'Vacaciones',
+        default_retirement: 'Fondo de jubilación',
+        default_bank_loan: 'Préstamo bancario',
+        // Expense tracker defaults
+        default_cat_groceries: 'Comestibles',
+        default_note_groceries: 'Compra semanal',
+        default_cat_transport: 'Transporte',
+        default_note_transport: 'Billetes',
+        default_cat_entertainment: 'Entretenimiento',
+        default_note_entertainment: 'Cine',
+        default_cat_shopping: 'Compras',
+        default_note_shopping: 'Ropa'
+    },
+    it: {
+        title: 'Pianificatore di Budget',
+        overview: 'PANORAMICA',
+        start_date: 'DATA DI INIZIO',
+        end_date: 'DATA DI FINE',
+        start_balance: 'SALDO INIZIALE',
+        cash_flow_summary: 'RIEPILOGO FLUSSO DI CASSA',
+        budget: 'Budget',
+        actual: 'Effettivo',
+        income: 'Entrate',
+        expenses: 'Spese',
+        savings: 'Risparmi',
+        debt: 'Debiti',
+        bills: 'Bollette',
+        total_leftover: 'Totale Rimasto',
+        savings_summary: 'RIEPILOGO RISPARMI',
+        description: 'Descrizione',
+        total: 'Totale',
+        set_savings_goals: 'Imposta i tuoi obiettivi di risparmio qui',
+        favorite_shopping_sites: 'SITI DI SHOPPING PREFERITI',
+        store_name: 'Nome Negozio',
+        add: 'Aggiungi',
+        amount_left_to_spend: 'IMPORTO RIMASTO DA SPENDERE',
+        income_summary: 'RIEPILOGO ENTRATE',
+        bills_summary: 'RIEPILOGO BOLLETTE',
+        paid: 'Pagato',
+        due: 'Scadenza',
+        expense_tracker: 'TRACKER SPESE',
+        date: 'DATA',
+        category: 'CATEGORIA',
+        amount: 'IMPORTO',
+        note: 'NOTA',
+        add_item: 'Aggiungi elemento',
+        budget_vs_actual: 'BUDGET VS EFFETTIVO',
+        no_data: 'Nessun dato',
+        expenses_summary: 'RIEPILOGO SPESE',
+        left: 'Rimasto',
+        debt_summary: 'RIEPILOGO DEBITI',
+        reset_amounts: 'Azzera importi',
+        reset_month: 'Azzera mese',
+        data_actions: 'Azioni dati ▾',
+        export_complete_app: 'Esporta app completa',
+        export_month_data: 'Esporta dati del mese',
+        import_month_data: 'Importa dati del mese',
+        clear_all_data: 'Cancella tutti i dati',
+        reset_savings_amounts: 'Azzera risparmi',
+        reset_income_amounts: 'Azzera entrate',
+        reset_bill_amounts: 'Azzera bollette',
+        reset_expense_amounts: 'Azzera spese',
+        reset_debt_amounts: 'Azzera debiti',
+         // Default descriptions
+        default_salary: 'Stipendio',
+        default_freelance: 'Libero professionista',
+        default_rent: 'Affitto',
+        default_gas: 'Gas',
+        default_electricity: 'Elettricità',
+        default_water: 'Acqua',
+        default_broadband: 'Internet',
+        default_phone: 'Telefono',
+        default_tax: 'Tasse',
+        default_food: 'Cibo',
+        default_fuel: 'Carburante',
+        default_takeaway: 'Cibo da asporto',
+        default_supplements: 'Integratori',
+        default_housekeeping: 'Pulizie',
+        default_makeup: 'Trucco',
+        default_emergency_fund: 'Fondo di emergenza',
+        default_vacation: 'Vacanza',
+        default_retirement: 'Fondo pensione',
+        default_bank_loan: 'Prestito bancario',
+        // Expense tracker defaults
+        default_cat_groceries: 'Spesa',
+        default_note_groceries: 'Spesa settimanale',
+        default_cat_transport: 'Trasporti',
+        default_note_transport: 'Biglietti',
+        default_cat_entertainment: 'Intrattenimento',
+        default_note_entertainment: 'Cinema',
+        default_cat_shopping: 'Shopping',
+        default_note_shopping: 'Vestiti'
+    },
+    pt: {
+        title: 'Planejador de Orçamento',
+        overview: 'VISÃO GERAL',
+        start_date: 'DATA DE INÍCIO',
+        end_date: 'DATA DE FIM',
+        start_balance: 'SALDO INICIAL',
+        cash_flow_summary: 'RESUMO DO FLUXO DE CAIXA',
+        budget: 'Orçamento',
+        actual: 'Real',
+        income: 'Receitas',
+        expenses: 'Despesas',
+        savings: 'Poupanças',
+        debt: 'Dívidas',
+        bills: 'Contas',
+        total_leftover: 'Total Restante',
+        savings_summary: 'RESUMO DE POUPANÇAS',
+        description: 'Descrição',
+        total: 'Total',
+        set_savings_goals: 'Defina suas metas de poupança aqui',
+        favorite_shopping_sites: 'SITES DE COMPRAS FAVORITOS',
+        store_name: 'Nome da Loja',
+        add: 'Adicionar',
+        amount_left_to_spend: 'VALOR RESTANTE PARA GASTAR',
+        income_summary: 'RESUMO DE RECEITAS',
+        bills_summary: 'RESUMO DE CONTAS',
+        paid: 'Pago',
+        due: 'Vencimento',
+        expense_tracker: 'RASTREADOR DE DESPESAS',
+        date: 'DATA',
+        category: 'CATEGORIA',
+        amount: 'VALOR',
+        note: 'NOTA',
+        add_item: 'Adicionar item',
+        budget_vs_actual: 'ORÇAMENTO VS REAL',
+        no_data: 'Sem dados',
+        expenses_summary: 'RESUMO DE DESPESAS',
+        left: 'Restante',
+        debt_summary: 'RESUMO DE DÍVIDAS',
+        reset_amounts: 'Redefinir valores',
+        reset_month: 'Redefinir mês',
+        data_actions: 'Ações de dados ▾',
+        export_complete_app: 'Exportar app completo',
+        export_month_data: 'Exportar dados do mês',
+        import_month_data: 'Importar dados do mês',
+        clear_all_data: 'Limpar todos os dados',
+        reset_savings_amounts: 'Redefinir poupanças',
+        reset_income_amounts: 'Redefinir receitas',
+        reset_bill_amounts: 'Redefinir contas',
+        reset_expense_amounts: 'Redefinir despesas',
+        reset_debt_amounts: 'Redefinir dívidas',
+        // Default descriptions
+        default_salary: 'Salário',
+        default_freelance: 'Freelancer',
+        default_rent: 'Aluguel',
+        default_gas: 'Gás',
+        default_electricity: 'Eletricidade',
+        default_water: 'Água',
+        default_broadband: 'Internet',
+        default_phone: 'Telefone',
+        default_tax: 'Imposto',
+        default_food: 'Comida',
+        default_fuel: 'Combustível',
+        default_takeaway: 'Comida para levar',
+        default_supplements: 'Suplementos',
+        default_housekeeping: 'Limpeza',
+        default_makeup: 'Maquiagem',
+        default_emergency_fund: 'Fundo de emergência',
+        default_vacation: 'Férias',
+        default_retirement: 'Fundo de aposentadoria',
+        default_bank_loan: 'Empréstimo bancário',
+        // Expense tracker defaults
+        default_cat_groceries: 'Mercearia',
+        default_note_groceries: 'Compras da semana',
+        default_cat_transport: 'Transporte',
+        default_note_transport: 'Bilhetes',
+        default_cat_entertainment: 'Entretenimento',
+        default_note_entertainment: 'Cinema',
+        default_cat_shopping: 'Compras',
+        default_note_shopping: 'Roupas'
+    },
+    ru: {
+        title: 'Планировщик Бюджета',
+        overview: 'ОБЗОР',
+        start_date: 'ДАТА НАЧАЛА',
+        end_date: 'ДАТА ОКОНЧАНИЯ',
+        start_balance: 'НАЧАЛЬНЫЙ БАЛАНС',
+        cash_flow_summary: 'СВОДКА ДЕНЕЖНЫХ ПОТОКОВ',
+        budget: 'Бюджет',
+        actual: 'Фактический',
+        income: 'Доходы',
+        expenses: 'Расходы',
+        savings: 'Сбережения',
+        debt: 'Долги',
+        bills: 'Счета',
+        total_leftover: 'Общий Остаток',
+        savings_summary: 'СВОДКА СБЕРЕЖЕНИЙ',
+        description: 'Описание',
+        total: 'Итого',
+        set_savings_goals: 'Установите ваши цели сбережений здесь',
+        favorite_shopping_sites: 'ЛЮБИМЫЕ ТОРГОВЫЕ САЙТЫ',
+        store_name: 'Название Магазина',
+        add: 'Добавить',
+        amount_left_to_spend: 'СУММА ОСТАЕТСЯ ПОТРАТИТЬ',
+        income_summary: 'СВОДКА ДОХОДОВ',
+        bills_summary: 'СВОДКА СЧЕТОВ',
+        paid: 'Оплачено',
+        due: 'Срок',
+        expense_tracker: 'ТРЕКЕР РАСХОДОВ',
+        date: 'ДАТА',
+        category: 'КАТЕГОРИЯ',
+        amount: 'СУММА',
+        note: 'ПРИМЕЧАНИЕ',
+        add_item: 'Добавить элемент',
+        budget_vs_actual: 'БЮДЖЕТ ПРОТИВ ФАКТА',
+        no_data: 'Нет данных',
+        expenses_summary: 'СВОДКА РАСХОДОВ',
+        left: 'Осталось',
+        debt_summary: 'СВОДКА ДОЛГОВ',
+        reset_amounts: 'Сбросить суммы',
+        reset_month: 'Сбросить месяц',
+        data_actions: 'Действия с данными ▾',
+        export_complete_app: 'Экспорт приложения',
+        export_month_data: 'Экспорт данных месяца',
+        import_month_data: 'Импорт данных месяца',
+        clear_all_data: 'Очистить все данные',
+        reset_savings_amounts: 'Сбросить сбережения',
+        reset_income_amounts: 'Сбросить доходы',
+        reset_bill_amounts: 'Сбросить счета',
+        reset_expense_amounts: 'Сбросить расходы',
+        reset_debt_amounts: 'Сбросить долги',
+        // Default descriptions
+        default_salary: 'Зарплата',
+        default_freelance: 'Фриланс',
+        default_rent: 'Аренда',
+        default_gas: 'Газ',
+        default_electricity: 'Электричество',
+        default_water: 'Вода',
+        default_broadband: 'Интернет',
+        default_phone: 'Телефон',
+        default_tax: 'Налог',
+        default_food: 'Еда',
+        default_fuel: 'Топливо',
+        default_takeaway: 'Еда на вынос',
+        default_supplements: 'Добавки',
+        default_housekeeping: 'Уборка',
+        default_makeup: 'Макияж',
+        default_emergency_fund: 'Чрезвычайный фонд',
+        default_vacation: 'Отпуск',
+        default_retirement: 'Пенсионный фонд',
+        default_bank_loan: 'Банковский кредит',
+        // Expense tracker defaults
+        default_cat_groceries: 'Продукты',
+        default_note_groceries: 'Еженедельные покупки',
+        default_cat_transport: 'Транспорт',
+        default_note_transport: 'Билеты',
+        default_cat_entertainment: 'Развлечения',
+        default_note_entertainment: 'Кино',
+        default_cat_shopping: 'Покупки',
+        default_note_shopping: 'Одежда'
+    },
+    pl: {
+        title: 'Planista Budżetu',
+        overview: 'PRZEGLĄD',
+        start_date: 'DATA ROZPOCZĘCIA',
+        end_date: 'DATA ZAKOŃCZENIA',
+        start_balance: 'SALDO POCZĄTKOWE',
+        cash_flow_summary: 'PODSUMOWANIE PRZEPŁYWÓW PIENIĘŻNYCH',
+        budget: 'Budżet',
+        actual: 'Rzeczywiste',
+        income: 'Dochody',
+        expenses: 'Wydatki',
+        savings: 'Oszczędności',
+        debt: 'Długi',
+        bills: 'Rachunki',
+        total_leftover: 'Całkowita Reszta',
+        savings_summary: 'PODSUMOWANIE OSZCZĘDNOŚCI',
+        description: 'Opis',
+        total: 'Razem',
+        set_savings_goals: 'Ustaw swoje cele oszczędnościowe tutaj',
+        favorite_shopping_sites: 'ULUBIONE SKLEPY INTERNETOWE',
+        store_name: 'Nazwa Sklepu',
+        add: 'Dodaj',
+        amount_left_to_spend: 'KWOTA DO WYDANIA',
+        income_summary: 'PODSUMOWANIE DOCHODÓW',
+        bills_summary: 'PODSUMOWANIE RACHUNKÓW',
+        paid: 'Zapłacone',
+        due: 'Termin',
+        expense_tracker: 'ŚLEDZENIE WYDATKÓW',
+        date: 'DATA',
+        category: 'KATEGORIA',
+        amount: 'KWOTA',
+        note: 'NOTATKA',
+        add_item: 'Dodaj element',
+        budget_vs_actual: 'BUDŻET VS RZECZYWISTE',
+        no_data: 'Brak danych',
+        expenses_summary: 'PODSUMOWANIE WYDATKÓW',
+        left: 'Pozostało',
+        debt_summary: 'PODSUMOWANIE DŁUGÓW',
+        reset_amounts: 'Resetuj kwoty',
+        reset_month: 'Resetuj miesiąc',
+        data_actions: 'Akcje danych ▾',
+        export_complete_app: 'Eksportuj aplikację',
+        export_month_data: 'Eksportuj dane miesiąca',
+        import_month_data: 'Importuj dane miesiąca',
+        clear_all_data: 'Wyczyść wszystkie dane',
+        reset_savings_amounts: 'Resetuj oszczędności',
+        reset_income_amounts: 'Resetuj dochody',
+        reset_bill_amounts: 'Resetuj rachunki',
+        reset_expense_amounts: 'Resetuj wydatki',
+        reset_debt_amounts: 'Resetuj długi',
+        // Default descriptions
+        default_salary: 'Pensja',
+        default_freelance: 'Freelance',
+        default_rent: 'Czynsz',
+        default_gas: 'Gaz',
+        default_electricity: 'Prąd',
+        default_water: 'Woda',
+        default_broadband: 'Internet',
+        default_phone: 'Telefon',
+        default_tax: 'Podatek',
+        default_food: 'Jedzenie',
+        default_fuel: 'Paliwo',
+        default_takeaway: 'Na wynos',
+        default_supplements: 'Suplementy',
+        default_housekeeping: 'Sprzątanie',
+        default_makeup: 'Makijaż',
+        default_emergency_fund: 'Fundusz awaryjny',
+        default_vacation: 'Wakacje',
+        default_retirement: 'Fundusz emerytalny',
+        default_bank_loan: 'Kredyt bankowy',
+        // Expense tracker defaults
+        default_cat_groceries: 'Artykuły spożywcze',
+        default_note_groceries: 'Tygodniowe zakupy',
+        default_cat_transport: 'Transport',
+        default_note_transport: 'Bilety',
+        default_cat_entertainment: 'Rozrywka',
+        default_note_entertainment: 'Kino',
+        default_cat_shopping: 'Zakupy',
+        default_note_shopping: 'Ubrania'
+    },
+    nl: {
+        title: 'Budget Planner',
+        overview: 'OVERZICHT',
+        start_date: 'STARTDATUM',
+        end_date: 'EINDDATUM',
+        start_balance: 'BEGINSALDO',
+        cash_flow_summary: 'CASHFLOW SAMENVATTING',
+        budget: 'Budget',
+        actual: 'Werkelijk',
+        income: 'Inkomsten',
+        expenses: 'Uitgaven',
+        savings: 'Besparingen',
+        debt: 'Schulden',
+        bills: 'Rekeningen',
+        total_leftover: 'Totaal Over',
+        savings_summary: 'BESPARINGEN SAMENVATTING',
+        description: 'Beschrijving',
+        total: 'Totaal',
+        set_savings_goals: 'Stel hier je spaardoelen in',
+        favorite_shopping_sites: 'FAVORIETE WINKEL SITES',
+        store_name: 'Winkel Naam',
+        add: 'Toevoegen',
+        amount_left_to_spend: 'BEDRAG OVER OM TE BESTEDEN',
+        income_summary: 'INKOMSTEN SAMENVATTING',
+        bills_summary: 'REKENINGEN SAMENVATTING',
+        paid: 'Betaald',
+        due: 'Vervaldatum',
+        expense_tracker: 'UITGAVEN TRACKER',
+        date: 'DATUM',
+        category: 'CATEGORIE',
+        amount: 'BEDRAG',
+        note: 'NOTITIE',
+        add_item: 'Item toevoegen',
+        budget_vs_actual: 'BUDGET VS WERKELIJK',
+        no_data: 'Geen gegevens',
+        expenses_summary: 'UITGAVEN SAMENVATTING',
+        left: 'Over',
+        debt_summary: 'SCHULDEN SAMENVATTING',
+        reset_amounts: 'Bedragen resetten',
+        reset_month: 'Maand resetten',
+        data_actions: 'Data-acties ▾',
+        export_complete_app: 'Volledige app exporteren',
+        export_month_data: 'Maandgegevens exporteren',
+        import_month_data: 'Maandgegevens importeren',
+        clear_all_data: 'Alle gegevens wissen',
+        reset_savings_amounts: 'Besparingen resetten',
+        reset_income_amounts: 'Inkomsten resetten',
+        reset_bill_amounts: 'Rekeningen resetten',
+        reset_expense_amounts: 'Uitgaven resetten',
+        reset_debt_amounts: 'Schulden resetten',
+        // Default descriptions
+        default_salary: 'Salaris',
+        default_freelance: 'Freelance',
+        default_rent: 'Huur',
+        default_gas: 'Gas',
+        default_electricity: 'Elektriciteit',
+        default_water: 'Water',
+        default_broadband: 'Internet',
+        default_phone: 'Telefoon',
+        default_tax: 'Belasting',
+        default_food: 'Eten',
+        default_fuel: 'Brandstof',
+        default_takeaway: 'Afhaalmaaltijden',
+        default_supplements: 'Supplementen',
+        default_housekeeping: 'Huishouden',
+        default_makeup: 'Make-up',
+        default_emergency_fund: 'Noodfonds',
+        default_vacation: 'Vakantie',
+        default_retirement: 'Pensioenfonds',
+        default_bank_loan: 'Banklening',
+        // Expense tracker defaults
+        default_cat_groceries: 'Boodschappen',
+        default_note_groceries: 'Wekelijkse boodschappen',
+        default_cat_transport: 'Vervoer',
+        default_note_transport: 'Kaartjes',
+        default_cat_entertainment: 'Amusement',
+        default_note_entertainment: 'Bioscoop',
+        default_cat_shopping: 'Winkelen',
+        default_note_shopping: 'Kleding'
+    },
+    sv: {
+        title: 'Budget Planerare',
+        overview: 'ÖVERSIKT',
+        start_date: 'STARTDATUM',
+        end_date: 'SLUTDATUM',
+        start_balance: 'STARTSALDO',
+        cash_flow_summary: 'KASSAFLÖDE SAMMANFATTNING',
+        budget: 'Budget',
+        actual: 'Faktisk',
+        income: 'Inkomster',
+        expenses: 'Utgifter',
+        savings: 'Sparande',
+        debt: 'Skulder',
+        bills: 'Räkningar',
+        total_leftover: 'Totalt Kvar',
+        savings_summary: 'SPARANDE SAMMANFATTNING',
+        description: 'Beskrivning',
+        total: 'Totalt',
+        set_savings_goals: 'Ställ in dina sparmål här',
+        favorite_shopping_sites: 'FAVORIT SHOPPING SIDOR',
+        store_name: 'Butiksnamn',
+        add: 'Lägg till',
+        amount_left_to_spend: 'BELOPP KVAR ATT SPENDERA',
+        income_summary: 'INKOMSTER SAMMANFATTNING',
+        bills_summary: 'RÄKNINGAR SAMMANFATTNING',
+        paid: 'Betald',
+        due: 'Förfaller',
+        expense_tracker: 'UTGIFTER SPÅRARE',
+        date: 'DATUM',
+        category: 'KATEGORI',
+        amount: 'BELOPP',
+        note: 'ANTECKNING',
+        add_item: 'Lägg till objekt',
+        budget_vs_actual: 'BUDGET VS FAKTISK',
+        no_data: 'Inga data',
+        expenses_summary: 'UTGIFTER SAMMANFATTNING',
+        left: 'Kvar',
+        debt_summary: 'SKULDER SAMMANFATTNING',
+        reset_amounts: 'Återställ belopp',
+        reset_month: 'Återställ månad',
+        data_actions: 'Dataåtgärder ▾',
+        export_complete_app: 'Exportera komplett app',
+        export_month_data: 'Exportera månadsdata',
+        import_month_data: 'Importera månadsdata',
+        clear_all_data: 'Rensa all data',
+        reset_savings_amounts: 'Återställ sparande',
+        reset_income_amounts: 'Återställ inkomster',
+        reset_bill_amounts: 'Återställ räkningar',
+        reset_expense_amounts: 'Återställ utgifter',
+        reset_debt_amounts: 'Återställ skulder',
+        // Default descriptions
+        default_salary: 'Lön',
+        default_freelance: 'Frilans',
+        default_rent: 'Hyra',
+        default_gas: 'Gas',
+        default_electricity: 'El',
+        default_water: 'Vatten',
+        default_broadband: 'Bredband',
+        default_phone: 'Telefon',
+        default_tax: 'Skatt',
+        default_food: 'Mat',
+        default_fuel: 'Bränsle',
+        default_takeaway: 'Hämtmat',
+        default_supplements: 'Kosttillskott',
+        default_housekeeping: 'Städning',
+        default_makeup: 'Smink',
+        default_emergency_fund: 'Nödfond',
+        default_vacation: 'Semester',
+        default_retirement: 'Pensionsfond',
+        default_bank_loan: 'Banklån',
+        // Expense tracker defaults
+        default_cat_groceries: 'Livsmedel',
+        default_note_groceries: 'Veckohandel',
+        default_cat_transport: 'Transport',
+        default_note_transport: 'Biljetter',
+        default_cat_entertainment: 'Underhållning',
+        default_note_entertainment: 'Bio',
+        default_cat_shopping: 'Shopping',
+        default_note_shopping: 'Kläder'
+    },
+    tr: {
+        title: 'Bütçe Planlayıcısı',
+        overview: 'GENEL BAKIŞ',
+        start_date: 'BAŞLANGIÇ TARİHİ',
+        end_date: 'BİTİŞ TARİHİ',
+        start_balance: 'BAŞLANGIÇ BAKİYESİ',
+        cash_flow_summary: 'NAKİT AKIŞI ÖZETİ',
+        budget: 'Bütçe',
+        actual: 'Gerçek',
+        income: 'Gelir',
+        expenses: 'Harcamalar',
+        savings: 'Tasarruflar',
+        debt: 'Borç',
+        bills: 'Faturalar',
+        total_leftover: 'Toplam Kalan',
+        savings_summary: 'TASARRUFLAR ÖZETİ',
+        description: 'Açıklama',
+        total: 'Toplam',
+        set_savings_goals: 'Tasarruf hedeflerinizi buraya ayarlayın',
+        favorite_shopping_sites: 'FAVORİ ALIŞVERİŞ SİTELERİ',
+        store_name: 'Mağaza Adı',
+        add: 'Ekle',
+        amount_left_to_spend: 'HARCAMAK İÇİN KALAN MİKTAR',
+        income_summary: 'GELİR ÖZETİ',
+        bills_summary: 'FATURALAR ÖZETİ',
+        paid: 'Ödendi',
+        due: 'Vade',
+        expense_tracker: 'HARCAMA TAKİPCİSİ',
+        date: 'TARİH',
+        category: 'KATEGORİ',
+        amount: 'MİKTAR',
+        note: 'NOT',
+        add_item: 'Öğe ekle',
+        budget_vs_actual: 'BÜTÇE VS GERÇEK',
+        no_data: 'Veri yok',
+        expenses_summary: 'HARCAMALAR ÖZETİ',
+        left: 'Kalan',
+        debt_summary: 'BORÇ ÖZETİ',
+        reset_amounts: 'Miktarları sıfırla',
+        reset_month: 'Ayı sıfırla',
+        data_actions: 'Veri İşlemleri ▾',
+        export_complete_app: 'Tam uygulamayı dışa aktar',
+        export_month_data: 'Ay verilerini dışa aktar',
+        import_month_data: 'Ay verilerini içe aktar',
+        clear_all_data: 'Tüm verileri temizle',
+        reset_savings_amounts: 'Tasarrufları sıfırla',
+        reset_income_amounts: 'Gelirleri sıfırla',
+        reset_bill_amounts: 'Faturaları sıfırla',
+        reset_expense_amounts: 'Harcamaları sıfırla',
+        reset_debt_amounts: 'Borçları sıfırla',
+        // Default descriptions
+        default_salary: 'Maaş',
+        default_freelance: 'Serbest Meslek',
+        default_rent: 'Kira',
+        default_gas: 'Gaz',
+        default_electricity: 'Elektrik',
+        default_water: 'Su',
+        default_broadband: 'İnternet',
+        default_phone: 'Telefon',
+        default_tax: 'Vergi',
+        default_food: 'Gıda',
+        default_fuel: 'Yakıt',
+        default_takeaway: 'Paket Servis',
+        default_supplements: 'Takviyeler',
+        default_housekeeping: 'Temizlik',
+        default_makeup: 'Makyaj',
+        default_emergency_fund: 'Acil Durum Fonu',
+        default_vacation: 'Tatil',
+        default_retirement: 'Emeklilik Fonu',
+        default_bank_loan: 'Banka Kredisi',
+        // Expense tracker defaults
+        default_cat_groceries: 'Market',
+        default_note_groceries: 'Haftalık alışveriş',
+        default_cat_transport: 'Ulaşım',
+        default_note_transport: 'Biletler',
+        default_cat_entertainment: 'Eğlence',
+        default_note_entertainment: 'Sinema',
+        default_cat_shopping: 'Alışveriş',
+        default_note_shopping: 'Kıyafet'
+    },
+    zh: {
+        title: '预算规划师',
+        overview: '概览',
+        start_date: '开始日期',
+        end_date: '结束日期',
+        start_balance: '起始余额',
+        cash_flow_summary: '现金流摘要',
+        budget: '预算',
+        actual: '实际',
+        income: '收入',
+        expenses: '支出',
+        savings: '储蓄',
+        debt: '债务',
+        bills: '账单',
+        total_leftover: '总剩余',
+        savings_summary: '储蓄摘要',
+        description: '描述',
+        total: '总计',
+        set_savings_goals: '在这里设置您的储蓄目标',
+        favorite_shopping_sites: '收藏的购物网站',
+        store_name: '商店名称',
+        add: '添加',
+        amount_left_to_spend: '剩余可支出金额',
+        income_summary: '收入摘要',
+        bills_summary: '账单摘要',
+        paid: '已付',
+        due: '到期',
+        expense_tracker: '支出跟踪器',
+        date: '日期',
+        category: '类别',
+        amount: '金额',
+        note: '备注',
+        add_item: '添加项目',
+        budget_vs_actual: '预算对比实际',
+        no_data: '无数据',
+        expenses_summary: '支出摘要',
+        left: '剩余',
+        debt_summary: '债务摘要',
+        reset_amounts: '重置金额',
+        reset_month: '重置月份',
+        data_actions: '数据操作 ▾',
+        export_complete_app: '导出完整应用',
+        export_month_data: '导出月度数据',
+        import_month_data: '导入月度数据',
+        clear_all_data: '清除所有数据',
+        reset_savings_amounts: '重置储蓄',
+        reset_income_amounts: '重置收入',
+        reset_bill_amounts: '重置账单',
+        reset_expense_amounts: '重置支出',
+        reset_debt_amounts: '重置债务',
+        // Default descriptions
+        default_salary: '工资',
+        default_freelance: '自由职业',
+        default_rent: '房租',
+        default_gas: '燃气',
+        default_electricity: '电费',
+        default_water: '水费',
+        default_broadband: '宽带',
+        default_phone: '电话',
+        default_tax: '税',
+        default_food: '食物',
+        default_fuel: '燃料',
+        default_takeaway: '外卖',
+        default_supplements: '补品',
+        default_housekeeping: '家政',
+        default_makeup: '化妆品',
+        default_emergency_fund: '应急基金',
+        default_vacation: '假期',
+        default_retirement: '退休基金',
+        default_bank_loan: '银行贷款',
+        // Expense tracker defaults
+        default_cat_groceries: '杂货',
+        default_note_groceries: '每周购物',
+        default_cat_transport: '交通',
+        default_note_transport: '车票',
+        default_cat_entertainment: '娱乐',
+        default_note_entertainment: '电影',
+        default_cat_shopping: '购物',
+        default_note_shopping: '衣服'
+    },
+    ja: {
+        title: '予算プランナー',
+        overview: '概要',
+        start_date: '開始日',
+        end_date: '終了日',
+        start_balance: '開始残高',
+        cash_flow_summary: 'キャッシュフロー概要',
+        budget: '予算',
+        actual: '実際',
+        income: '収入',
+        expenses: '支出',
+        savings: '貯金',
+        debt: '借金',
+        bills: '請求書',
+        total_leftover: '総残り',
+        savings_summary: '貯金概要',
+        description: '説明',
+        total: '合計',
+        set_savings_goals: 'ここに貯金目標を設定してください',
+        favorite_shopping_sites: 'お気に入りのショッピングサイト',
+        store_name: '店舗名',
+        add: '追加',
+        amount_left_to_spend: '支出可能残額',
+        income_summary: '収入概要',
+        bills_summary: '請求書概要',
+        paid: '支払済',
+        due: '期限',
+        expense_tracker: '支出トラッカー',
+        date: '日付',
+        category: 'カテゴリ',
+        amount: '金額',
+        note: 'メモ',
+        add_item: 'アイテム追加',
+        budget_vs_actual: '予算対実際',
+        no_data: 'データなし',
+        expenses_summary: '支出概要',
+        left: '残り',
+        debt_summary: '借金概要',
+        reset_amounts: '金額をリセット',
+        reset_month: '月をリセット',
+        data_actions: 'データ操作 ▾',
+        export_complete_app: '完全なアプリをエクスポート',
+        export_month_data: '月データをエクスポート',
+        import_month_data: '月データをインポート',
+        clear_all_data: '全データをクリア',
+        reset_savings_amounts: '貯金をリセット',
+        reset_income_amounts: '収入をリセット',
+        reset_bill_amounts: '請求書をリセット',
+        reset_expense_amounts: '支出をリセット',
+        reset_debt_amounts: '借金をリセット',
+        // Default descriptions
+        default_salary: '給料',
+        default_freelance: 'フリーランス',
+        default_rent: '家賃',
+        default_gas: 'ガス',
+        default_electricity: '電気',
+        default_water: '水道',
+        default_broadband: 'インターネット',
+        default_phone: '電話',
+        default_tax: '税金',
+        default_food: '食費',
+        default_fuel: '燃料',
+        default_takeaway: 'テイクアウト',
+        default_supplements: 'サプリメント',
+        default_housekeeping: '家事',
+        default_makeup: '化粧品',
+        default_emergency_fund: '緊急資金',
+        default_vacation: '休暇',
+        default_retirement: '退職基金',
+        default_bank_loan: '銀行ローン',
+        // Expense tracker defaults
+        default_cat_groceries: '食料品',
+        default_note_groceries: '週ごとの買い物',
+        default_cat_transport: '交通',
+        default_note_transport: 'チケット',
+        default_cat_entertainment: 'エンターテイメント',
+        default_note_entertainment: '映画',
+        default_cat_shopping: '買い物',
+        default_note_shopping: '服'
+    },
+    ar: {
+        title: 'مخطط الميزانية',
+        overview: 'نظرة عامة',
+        start_date: 'تاريخ البداية',
+        end_date: 'تاريخ النهاية',
+        start_balance: 'الرصيد الابتدائي',
+        cash_flow_summary: 'ملخص التدفق النقدي',
+        budget: 'الميزانية',
+        actual: 'الفعلي',
+        income: 'الدخل',
+        expenses: 'المصروفات',
+        savings: 'المدخرات',
+        debt: 'الديون',
+        bills: 'الفواتير',
+        total_leftover: 'إجمالي المتبقي',
+        savings_summary: 'ملخص المدخرات',
+        description: 'الوصف',
+        total: 'المجموع',
+        set_savings_goals: 'حدد أهداف الادخار هنا',
+        favorite_shopping_sites: 'مواقع التسوق المفضلة',
+        store_name: 'اسم المتجر',
+        add: 'إضافة',
+        amount_left_to_spend: 'المبلغ المتبقي للإنفاق',
+        income_summary: 'ملخص الدخل',
+        bills_summary: 'ملخص الفواتير',
+        paid: 'مدفوع',
+        due: 'تاريخ الاستحقاق',
+        expense_tracker: 'متتبع المصروفات',
+        date: 'التاريخ',
+        category: 'الفئة',
+        amount: 'المبلغ',
+        note: 'ملاحظة',
+        add_item: 'إضافة عنصر',
+        budget_vs_actual: 'الميزانية مقابل الفعلي',
+        no_data: 'لا توجد بيانات',
+        expenses_summary: 'ملخص المصروفات',
+        left: 'المتبقي',
+        debt_summary: 'ملخص الديون',
+        reset_amounts: 'إعادة تعيين المبالغ',
+        reset_month: 'إعادة تعيين الشهر',
+        data_actions: 'إجراءات البيانات ▾',
+        export_complete_app: 'تصدير التطبيق كاملاً',
+        export_month_data: 'تصدير بيانات الشهر',
+        import_month_data: 'استيراد بيانات الشهر',
+        clear_all_data: 'مسح جميع البيانات',
+        reset_savings_amounts: 'إعادة تعيين المدخرات',
+        reset_income_amounts: 'إعادة تعيين الدخل',
+        reset_bill_amounts: 'إعادة تعيين الفواتير',
+        reset_expense_amounts: 'إعادة تعيين المصروفات',
+        reset_debt_amounts: 'إعادة تعيين الديون',
+        // Default descriptions
+        default_salary: 'راتب',
+        default_freelance: 'عمل حر',
+        default_rent: 'إيجار',
+        default_gas: 'غاز',
+        default_electricity: 'كهرباء',
+        default_water: 'ماء',
+        default_broadband: 'إنترنت',
+        default_phone: 'هاتف',
+        default_tax: 'ضريبة',
+        default_food: 'طعام',
+        default_fuel: 'وقود',
+        default_takeaway: 'وجبات سريعة',
+        default_supplements: 'مكملات',
+        default_housekeeping: 'تدبير منزلي',
+        default_makeup: 'مكياج',
+        default_emergency_fund: 'صندوق الطوارئ',
+        default_vacation: 'إجازة',
+        default_retirement: 'صندوق التقاعد',
+        default_bank_loan: 'قرض بنكي',
+        // Expense tracker defaults
+        default_cat_groceries: 'بقالة',
+        default_note_groceries: 'تسوق أسبوعي',
+        default_cat_transport: 'مواصلات',
+        default_note_transport: 'تذاكر',
+        default_cat_entertainment: 'ترفيه',
+        default_note_entertainment: 'سينما',
+        default_cat_shopping: 'تسوق',
+        default_note_shopping: 'ملابس'
+    },
+    hi: {
+        title: 'बजट योजनाकार',
+        overview: 'अवलोकन',
+        start_date: 'प्रारंभ तिथि',
+        end_date: 'समाप्ति तिथि',
+        start_balance: 'प्रारंभिक शेष',
+        cash_flow_summary: 'नकदी प्रवाह सारांश',
+        budget: 'बजट',
+        actual: 'वास्तविक',
+        income: 'आय',
+        expenses: 'व्यय',
+        savings: 'बचत',
+        debt: 'ऋण',
+        bills: 'बिल',
+        total_leftover: 'कुल शेष',
+        savings_summary: 'बचत सारांश',
+        description: 'विवरण',
+        total: 'कुल',
+        set_savings_goals: 'यहाँ अपने बचत लक्ष्य निर्धारित करें',
+        favorite_shopping_sites: 'पसंदीदा खरीदारी साइटें',
+        store_name: 'स्टोर का नाम',
+        add: 'जोड़ें',
+        amount_left_to_spend: 'खर्च करने के लिए शेष राशि',
+        income_summary: 'आय सारांश',
+        bills_summary: 'बिल सारांश',
+        paid: 'भुगतान किया',
+        due: 'नियत तारीख',
+        expense_tracker: 'व्यय ट्रैकर',
+        date: 'तारीख',
+        category: 'श्रेणी',
+        amount: 'राशि',
+        note: 'नोट',
+        add_item: 'आइटम जोड़ें',
+        budget_vs_actual: 'बजट बनाम वास्तविक',
+        no_data: 'कोई डेटा नहीं',
+        expenses_summary: 'व्यय सारांश',
+        left: 'शेष',
+        debt_summary: 'ऋण सारांश',
+        reset_amounts: 'राशियाँ रीसेट करें',
+        reset_month: 'महीना रीसेट करें',
+        data_actions: 'डेटा एक्शन ▾',
+        export_complete_app: 'पूरा ऐप निर्यात करें',
+        export_month_data: 'महीने का डेटा निर्यात करें',
+        import_month_data: 'महीने का डेटा आयात करें',
+        clear_all_data: 'सभी डेटा साफ़ करें',
+        reset_savings_amounts: 'बचत रीसेट करें',
+        reset_income_amounts: 'आय रीसेट करें',
+        reset_bill_amounts: 'बिल रीसेट करें',
+        reset_expense_amounts: 'व्यय रीसेट करें',
+        reset_debt_amounts: 'ऋण रीसेट करें',
+        // Default descriptions
+        default_salary: 'वेतन',
+        default_freelance: 'फ्रीलांस',
+        default_rent: 'किराया',
+        default_gas: 'गैस',
+        default_electricity: 'बिजली',
+        default_water: 'पानी',
+        default_broadband: 'ब्रॉडबैंड',
+        default_phone: 'फोन',
+        default_tax: 'कर',
+        default_food: 'भोजन',
+        default_fuel: 'ईंधन',
+        default_takeaway: 'टेकअवे',
+        default_supplements: 'पूरक',
+        default_housekeeping: 'गृह व्यवस्था',
+        default_makeup: 'मेकअप',
+        default_emergency_fund: 'आपातकालीन निधि',
+        default_vacation: 'छुट्टी',
+        default_retirement: 'सेवानिवृत्ति निधि',
+        default_bank_loan: 'बैंक ऋण',
+        // Expense tracker defaults
+        default_cat_groceries: 'किराना',
+        default_note_groceries: 'साप्ताहिक खरीदारी',
+        default_cat_transport: 'परिवहन',
+        default_note_transport: 'टिकट',
+        default_cat_entertainment: 'मनोरंजन',
+        default_note_entertainment: 'सिनेमा',
+        default_cat_shopping: 'खरीदारी',
+        default_note_shopping: 'कपड़े'
+    }
+};
+
+// =================================================================================
+// SECTION 1.5: REVERSE TRANSLATION MAP FOR DYNAMIC LANGUAGE CHANGES
+// This map allows finding the original translation key (e.g., 'default_salary')
+// from a translated string (e.g., 'Gehalt'), enabling multi-language swaps.
+// =================================================================================
+
+let translationKeyMap = {};
+
+function buildTranslationKeyMap() {
+    translationKeyMap = {};
+    // List of all keys that correspond to default, translatable descriptions
+    const defaultDescKeys = [
+        'default_salary', 'default_freelance', 'default_rent', 'default_gas',
+        'default_electricity', 'default_water', 'default_broadband', 'default_phone',
+        'default_tax', 'default_food', 'default_fuel', 'default_takeaway',
+        'default_supplements', 'default_housekeeping', 'default_makeup',
+        'default_emergency_fund', 'default_vacation', 'default_retirement',
+        'default_bank_loan', 'default_cat_groceries', 'default_note_groceries',
+        'default_cat_transport', 'default_note_transport', 'default_cat_entertainment',
+        'default_note_entertainment', 'default_cat_shopping', 'default_note_shopping'
+    ];
+
+    // Iterate over every language and every key to build the map
+    for (const lang in TRANSLATIONS) {
+        for (const key of defaultDescKeys) {
+            if (TRANSLATIONS[lang][key]) {
+                const translatedString = TRANSLATIONS[lang][key];
+                // Map the translated string back to its original, unique key
+                translationKeyMap[translatedString] = key;
+            }
+        }
+    }
+}
+
+// Immediately build the map on script load
+buildTranslationKeyMap();
+
+/**
+ * Finds the language-independent translation key for a given description string.
+ * @param {string} description The translated description (e.g., "Gehalt", "Salary").
+ * @returns {string|null} The original key (e.g., "default_salary") or null if not found.
+ */
+function getTranslationKey(description) {
+    return translationKeyMap[description] || null;
+}
+
+// CORRECTED Currency Configuration Object
+const CURRENCIES = {
+    EUR: { symbol: '€', locale: 'de-DE' },
+    USD: { symbol: '$', locale: 'en-US' },
+    GBP: { symbol: '£', locale: 'en-GB' },
+    JPY: { symbol: '¥', locale: 'ja-JP' },
+    CAD: { symbol: 'CA$', locale: 'en-CA' },
+    AUD: { symbol: 'A$', locale: 'en-AU' },
+    CHF: { symbol: 'CHF', locale: 'de-CH' },
+    NOK: { symbol: 'kr', locale: 'no-NO' },
+    SEK: { symbol: 'kr', locale: 'sv-SE' },
+    PLN: { symbol: 'zł', locale: 'pl-PL' },
+    RUB: { symbol: '₽', locale: 'ru-RU' },
+    CNY: { symbol: '¥', locale: 'zh-CN' },
+    INR: { symbol: '₹', locale: 'hi-IN' },
+    TRY: { symbol: '₺', locale: 'tr-TR' },
+    AED: { symbol: 'د.إ', locale: 'ar-AE' }
+};
+
+// Current Language and Currency State
+let currentLanguage = 'en';
+let currentCurrency = 'EUR';
+
+// --- Helper Functions ---
+
+function detectBrowserLanguage() {
+    const savedLang = localStorage.getItem('budget-language');
+    if (savedLang && TRANSLATIONS[savedLang]) {
+        return savedLang;
+    }
+    
+    const browserLang = navigator.language || navigator.languages[0];
+    const langCode = browserLang.split('-')[0].toLowerCase();
+    
+    if (TRANSLATIONS[langCode]) {
+        return langCode;
+    }
+    
+    return 'en'; // Fallback to English
+}
+
+function translate(key) {
+    if (TRANSLATIONS[currentLanguage] && TRANSLATIONS[currentLanguage][key]) {
+        return TRANSLATIONS[currentLanguage][key];
+    }
+    if (TRANSLATIONS['en'] && TRANSLATIONS['en'][key]) {
+        return TRANSLATIONS['en'][key];
+    }
+    return key.replace(/_/g, ' ').toUpperCase();
+}
+
+function updateUILanguage() {
+    document.title = translate('title');
+    
+    document.querySelectorAll('[data-i18n]').forEach(element => {
+        const key = element.getAttribute('data-i18n');
+        element.textContent = translate(key);
+    });
+    
+    document.querySelectorAll('[data-i18n-placeholder]').forEach(element => {
+        const key = element.getAttribute('data-i18n-placeholder');
+        element.placeholder = translate(key);
+    });
+    
+    document.querySelectorAll('[data-i18n-title]').forEach(element => {
+        const key = element.getAttribute('data-i18n-title');
+        element.title = translate(key);
+    });
+    
+    if (window.App && window.App.charts) {
+        Object.values(window.App.charts).forEach(chart => {
+            if (chart && chart.options && chart.options.plugins && chart.options.plugins.legend) {
+                chart.update();
+            }
+        });
+    }
+}
+
+// CORRECTED Currency Formatting Function
+function formatCurrencyNoConvert(value, currencyCode = currentCurrency, locale = null) {
+    value = Number(value);
+    if (isNaN(value)) {
+        value = 0;
+    }
+
+    try {
+        const currency = CURRENCIES[currencyCode] || CURRENCIES[currentCurrency] || CURRENCIES.EUR;
+        const useLocale = locale || currency.locale || 'en-US';
+        
+        const formatter = new Intl.NumberFormat(useLocale, {
+            style: 'currency',
+            currency: currencyCode,
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        });
+        
+        return formatter.format(value);
+    } catch (error) {
+        console.error("Currency formatting failed for:", { value, currencyCode, error });
+        const currency = CURRENCIES[currencyCode] || CURRENCIES[currentCurrency] || CURRENCIES.EUR;
+        const formattedValue = Math.abs(value).toFixed(2);
+        return value < 0 ? `-${currency.symbol} ${formattedValue}` : `${currency.symbol} ${formattedValue}`;
+    }
+}
+
+function updateCurrencyDisplay() {
+    const currency = CURRENCIES[currentCurrency];
+    if (!currency) return;
+    
+    document.querySelectorAll('.currency').forEach(el => {
+        el.textContent = currency.symbol;
+    });
+    
+    document.querySelectorAll('[id*="-total"], [id*="-budget"], [id*="-actual"], [id*="-leftover"], #amount-left-to-spend-value, #top-income, #top-bills, #top-expenses').forEach(el => {
+        if (el.textContent && el.textContent.match(/[\d,.-]+/)) {
+            const numericMatch = el.textContent.match(/([-]?[\d,]+\.?\d*)/);
+            if (numericMatch) {
+                const value = parseFloat(numericMatch[1].replace(/,/g, ''));
+                if (!isNaN(value)) {
+                    el.textContent = formatCurrencyNoConvert(value);
+                }
+            }
+        }
+    });
+}
+
+function changeLanguage(newLanguage) {
+    if (TRANSLATIONS[newLanguage]) {
+        currentLanguage = newLanguage;
+        localStorage.setItem('budget-language', newLanguage);
+        updateUILanguage(); // Translates static elements like headers
+        if (window.App) {
+            // This function (which you need to implement in your main JS) will now be able to
+            // correctly translate default descriptions using the new helper functions.
+            window.App.updateDefaultDescriptions();
+            window.App.updateCharts(true); // Redraws charts with new labels
+        }
+    }
+}
+
+function changeCurrency(newCurrency) {
+    if (CURRENCIES[newCurrency]) {
+        currentCurrency = newCurrency;
+        localStorage.setItem('budget-currency', newCurrency);
+        updateCurrencyDisplay();
+        if (window.App) {
+            window.App.calculateAndDisplay();
+        }
+    }
+}
+
+// =================================================================================
+// SECTION 2: DEFAULT DATA TEMPLATE GENERATOR
+// This function generates the default structure for a new month's budget,
+// using the currently selected language for descriptions.
+// =================================================================================
+function getLocalizedDefaultTemplate() {
+    return {
+        overview: { startDate: '', endDate: '', startBalance: 0 },
+        income: [
+            { description: translate('default_salary'), budget: 0, actual: 0 },
+            { description: translate('default_freelance'), budget: 0, actual: 0 },
+            { description: '', budget: 0, actual: 0 }
+        ],
+        bills: [
+            { paid: false, due: '', description: translate('default_rent'), budget: 0, actual: 0 },
+            { paid: false, due: '', description: translate('default_gas'), budget: 0, actual: 0 },
+            { paid: false, due: '', description: translate('default_electricity'), budget: 0, actual: 0 },
+            { paid: false, due: '', description: translate('default_water'), budget: 0, actual: 0 },
+            { paid: false, due: '', description: translate('default_broadband'), budget: 0, actual: 0 },
+            { paid: false, due: '', description: translate('default_phone'), budget: 0, actual: 0 },
+            { paid: false, due: '', description: translate('default_tax'), budget: 0, actual: 0 }
+        ],
+        expenses: [
+            { description: translate('default_food'), budget: 0, actual: 0 },
+            { description: translate('default_fuel'), budget: 0, actual: 0 },
+            { description: translate('default_takeaway'), budget: 0, actual: 0 },
+            { description: translate('default_supplements'), budget: 0, actual: 0 },
+            { description: translate('default_housekeeping'), budget: 0, actual: 0 },
+            { description: translate('default_makeup'), budget: 0, actual: 0 }
+        ],
+        savings: [
+            { description: translate('default_emergency_fund'), budget: 0, actual: 0 },
+            { description: translate('default_vacation'), budget: 0, actual: 0 },
+            { description: translate('default_retirement'), budget: 0, actual: 0 },
+            { description: '', budget: 0, actual: 0 }
+        ],
+        debt: [
+            { description: translate('default_bank_loan'), due: '', budget: 0, actual: 0 },
+            { description: '', due: '', budget: 0, actual: 0 },
+            { description: '', due: '', budget: 0, actual: 0 },
+            { description: '', due: '', budget: 0, actual: 0 }
+        ],
+        expenseTracker: [
+            { date: '', category: translate('default_cat_groceries'), amount: 0, note: translate('default_note_groceries') },
+            { date: '', category: translate('default_cat_transport'), amount: 0, note: translate('default_note_transport') },
+            { date: '', category: translate('default_cat_entertainment'), amount: 0, note: translate('default_note_entertainment') },
+            { date: '', category: translate('default_cat_shopping'), amount: 0, note: translate('default_note_shopping') }
+        ]
+    };
+}
+
+
+// =================================================================================
+// SECTION 3: MAIN APPLICATION LOGIC
+// This code runs after the HTML document has been fully loaded and parsed.
+// It initializes the main application object "App".
+// =================================================================================
+document.addEventListener('DOMContentLoaded', () => {
+    try {
+        Chart.register(ChartDataLabels);
+
+        // Initialize Language and Currency on load.
+        // This happens after the functions above are defined, but before the App is initialized.
+        currentLanguage = detectBrowserLanguage();
+        currentCurrency = localStorage.getItem('budget-currency') || 'EUR';
+        
+        const languageSelector = document.getElementById('language-selector');
+        const currencySelector = document.getElementById('currency-selector');
+        
+        if (languageSelector) languageSelector.value = currentLanguage;
+        if (currencySelector) currencySelector.value = currentCurrency;
+        
+        // Apply initial translations and currency formatting
+        updateUILanguage();
+        updateCurrencyDisplay();
+
+        const App = {
+            // STATE
+            currentDate: new Date(),
+            allData: {}, // Store data for all months
+            charts: {},
+            shoppingSites: [],
+            saveTimeout: null,
+
+            // DOM ELEMENTS
+            elements: {
+                body: document.body,
+                mainContainer: document.querySelector('.main-container'),
+                themeToggle: document.getElementById('theme-toggle'),
+                languageSelector: document.getElementById('language-selector'),
+                currencySelector: document.getElementById('currency-selector'),
+                monthSelector: document.getElementById('month-selector'),
+                yearSelector: document.getElementById('year-selector'),
+                prevMonthBtn: document.getElementById('prev-month'),
+                nextMonthBtn: document.getElementById('next-month'),
+                saveStatus: document.getElementById('save-status'),
+                exportHtmlBtn: document.getElementById('export-html-btn'),
+                exportCsvBtn: document.getElementById('export-csv-btn'),
+                importBtn: document.getElementById('import-btn'),
+                importFile: document.getElementById('import-file'),
+                resetAmountsBtn: document.getElementById('reset-amounts-btn'),
+                resetMonthBtn: document.getElementById('reset-month-btn'),
+                clearAllBtn: document.getElementById('clear-all-btn'),
+                startDate: document.getElementById('start-date'),
+                endDate: document.getElementById('end-date'),
+                startBalance: document.getElementById('start-balance'),
+                amountLeftToSpend: document.getElementById('amount-left-to-spend-value'),
+                topIncome: document.getElementById('top-income'),
+                topBills: document.getElementById('top-bills'),
+                topExpenses: document.getElementById('top-expenses'),
+                incomeTable: document.getElementById('income-table').querySelector('tbody'),
+                billsTable: document.getElementById('bills-table').querySelector('tbody'),
+                expensesTable: document.getElementById('expenses-table').querySelector('tbody'),
+                savingsTable: document.getElementById('savings-table').querySelector('tbody'),
+                debtTable: document.getElementById('debt-table').querySelector('tbody'),
+                expenseTrackerTable: document.getElementById('expense-tracker-table').querySelector('tbody'),
+                cashFlowPiePlaceholder: document.getElementById('cashFlowPiePlaceholder'),
+                storeNameInput: document.getElementById('store-name-input'),
+                storeUrlInput: document.getElementById('store-url-input'),
+                addSiteBtn: document.getElementById('add-site-btn'),
+                shoppingLinks: document.getElementById('shopping-links'),
+                layoutDesktopBtn: document.getElementById('layout-desktop-btn'),
+                layoutTabletBtn: document.getElementById('layout-tablet-btn'),
+                layoutMobileBtn: document.getElementById('layout-mobile-btn'),
+                layoutBtns: document.querySelectorAll('.layout-btn'),
+            },
+
+            init() {
+                this.populateMonthYearSelectors();
+                this.initCharts();
+                this.attachEventListeners();
+                this.loadAllData();
+                this.loadShoppingSites();
+                this.applyTheme(localStorage.getItem('budget-theme') || 'pink');
+                this.applyLayout(localStorage.getItem('budget-layout') || 'desktop', true);
+                this.updateUIFromCurrentData();
+            },
+            
+            applyLayout(layout, isInitial = false) {
+                const E = this.elements;
+                const currentTheme = localStorage.getItem('budget-theme') || 'pink';
+                E.body.className = '';
+                E.body.classList.add(`theme-${currentTheme}`, `layout-${layout}`);
+
+                E.layoutBtns.forEach(btn => btn.classList.remove('active'));
+                const activeBtn = document.getElementById(`layout-${layout}-btn`);
+                if (activeBtn) activeBtn.classList.add('active');
+
+                localStorage.setItem('budget-layout', layout);
+
+                if (isInitial) {
+                     // For the initial load, just resize charts after a brief moment.
+                    setTimeout(() => {
+                        Object.values(this.charts).forEach(chart => {
+                            if (chart && typeof chart.resize === 'function') chart.resize();
+                        });
+                    }, 100);
+                    return;
+                }
+                
+                // FIX za canvas dimenzije pri prelascima između layout-ova
+console.log("Prelazim iz:", E.body.className, "u layout:", layout);
+
+// Posebno resetuj canvas elemente
+const canvasElements = document.querySelectorAll('canvas');
+canvasElements.forEach(canvas => {
+    // Ukloni fiksne dimenzije da charts mogu da se resize-uju
+    canvas.style.width = '';
+    canvas.style.height = '';
+    canvas.removeAttribute('width');
+    canvas.removeAttribute('height');
+});
+
+// Forsiraj repaint
+E.body.offsetHeight;
+
+setTimeout(() => {
+    // Reinicijalizuj sve charts da uzmu nove dimenzije
+    Object.values(this.charts).forEach(chart => {
+        if (chart && typeof chart.resize === 'function') {
+            chart.resize();
+            // Dodatni resize posle kratke pauze
+            setTimeout(() => {
+                if (chart && typeof chart.resize === 'function') {
+                    chart.resize();
+                }
+            }, 100);
+        }
+    });
+    
+    window.dispatchEvent(new Event('resize'));
+    console.log("Canvas elementi resetovani i charts resize-ovani");
+}, 50);
+            },
+
+            // --- DATA MANAGEMENT ---
+            getCurrentStorageKey() {
+                const year = this.currentDate.getFullYear();
+                const month = String(this.currentDate.getMonth() + 1).padStart(2, '0');
+                return `${year}-${month}`;
+            },
+
+            getCurrentData() {
+                const key = this.getCurrentStorageKey();
+                if (!this.allData[key]) {
+                    this.allData[key] = getLocalizedDefaultTemplate();
+                    this.setDefaultDatesForCurrentMonth(this.allData[key]);
+                }
+                return this.allData[key];
+            },
+
+            setDefaultDatesForCurrentMonth(data) {
+                const year = this.currentDate.getFullYear();
+                const month = this.currentDate.getMonth();
+                const monthNames = ["January", "February", "March", "April", "May", "June", 
+                                "July", "August", "September", "October", "November", "December"];
+                const daysInMonth = new Date(year, month + 1, 0).getDate();
+                
+                data.overview.startDate = `1 ${monthNames[month]} ${year}`;
+                data.overview.endDate = `${daysInMonth} ${monthNames[month]} ${year}`;
+            },
+
+            saveAllData() {
+                this.updateCurrentDataFromUI();
+                localStorage.setItem('budgetplanner-all-data', JSON.stringify(this.allData));
+                this.showSaveStatus('saved');
+            },
+
+            loadAllData() {
+                if (window.embeddedData) {
+                    this.allData = window.embeddedData.allData || {};
+                    if (window.embeddedData.currentDate) {
+                        this.currentDate = new Date(window.embeddedData.currentDate);
+                        this.updateDateSelectors();
+                    }
+                    return;
+                }
+                
+                const savedData = localStorage.getItem('budgetplanner-all-data');
+                if (savedData) {
+                    try {
+                        this.allData = JSON.parse(savedData);
+                    } catch (e) {
+                        console.error('Error loading data:', e);
+                        this.allData = {};
+                    }
+                } else {
+                    this.allData = {};
+                }
+            },
+
+            showSaveStatus(status) {
+                const statusEl = this.elements.saveStatus;
+                if (!statusEl) return;
+                if (status === 'saving') {
+                    statusEl.textContent = 'Saving...';
+                    statusEl.className = 'status-indicator saving';
+                } else if (status === 'saved') {
+                    statusEl.textContent = 'Saved';
+                    statusEl.className = 'status-indicator saved';
+                    setTimeout(() => {
+                        statusEl.textContent = '';
+                        statusEl.className = 'status-indicator';
+                    }, 2000);
+                }
+            },
+            
+            exportCompleteApp() {
+                this.updateCurrentDataFromUI();
+
+                // Create a clean, zeroed-out template based on the current structure for embedding.
+                const newTemplate = getLocalizedDefaultTemplate();
+                newTemplate.overview.startBalance = 0;
+                 ['income', 'bills', 'expenses', 'savings', 'debt'].forEach(category => {
+                    if (newTemplate[category] && Array.isArray(newTemplate[category])) {
+                        newTemplate[category].forEach(item => {
+                            if (item.hasOwnProperty('budget')) item.budget = 0;
+                            if (item.hasOwnProperty('actual')) item.actual = 0;
+                            if (item.hasOwnProperty('paid')) item.paid = false;
+                        });
+                    }
+                });
+                if (newTemplate.expenseTracker && Array.isArray(newTemplate.expenseTracker)) {
+                    newTemplate.expenseTracker.forEach(item => {
+                        if (item.hasOwnProperty('amount')) item.amount = 0;
+                    });
+                }
+                
+                const newDefaultTemplatesString = `
+                    function getLocalizedDefaultTemplate() {
+                        return ${JSON.stringify(newTemplate, null, 4).replace(/"(\w+)":/g, '$1:')};
+                    }
+                `;
+
+                Object.values(this.charts).forEach(chart => {
+                    if (chart && typeof chart.destroy === 'function') chart.destroy();
+                });
+
+                document.getElementById('budgetVsActualChart').parentElement.innerHTML = '<canvas id="budgetVsActualChart"></canvas>';
+                document.getElementById('cashFlowPieChart').parentElement.innerHTML = '<canvas id="cashFlowPieChart"></canvas><div id="cashFlowPiePlaceholder" class="chart-placeholder">No data</div>';
+                document.getElementById('incomeDonutChart').parentElement.innerHTML = '<canvas id="incomeDonutChart"></canvas><div class="income-donut-label">Income</div>';
+
+                let fullHTML = document.documentElement.outerHTML;
+
+                const templateRegex = /function getLocalizedDefaultTemplate\(\) \{[\s\S]*?};/
+                fullHTML = fullHTML.replace(templateRegex, newDefaultTemplatesString);
+                
+                this.initCharts();
+                this.calculateAndDisplay();
+
+                const newDoc = new DOMParser().parseFromString(fullHTML, 'text/html');
+
+                const dataToEmbed = { 
+                    allData: this.allData, 
+                    currentDate: this.currentDate.toISOString(),
+                    shoppingSites: this.shoppingSites
+                };
+                
+                const script = newDoc.createElement('script');
+                script.textContent = `window.embeddedData = ${JSON.stringify(dataToEmbed)};`;
+                newDoc.head.appendChild(script);
+
+                const blob = new Blob([newDoc.documentElement.outerHTML], { type: 'text/html' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `budget-planner-complete-${new Date().toISOString().split('T')[0]}.html`;
+                document.body.appendChild(a);
+                a.click();
+                
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            },
+
+            exportCurrentMonthCSV() {
+                const data = this.getCurrentData();
+                let csvContent = "data:text/csv;charset=utf-8,";
+
+                const escapeCell = (cell) => `"${String(cell || '').replace(/"/g, '""')}"`;
+                const toCSVRow = (arr) => arr.map(escapeCell).join(',');
+
+                csvContent += `MONTH: ${this.getCurrentStorageKey()}\r\n\r\n`;
+
+                csvContent += "OVERVIEW\r\n";
+                csvContent += toCSVRow(['Key', 'Value']) + '\r\n';
+                csvContent += toCSVRow(['Start Date', data.overview.startDate]) + '\r\n';
+                csvContent += toCSVRow(['End Date', data.overview.endDate]) + '\r\n';
+                csvContent += toCSVRow(['Start Balance', data.overview.startBalance]) + '\r\n\r\n';
+
+                const sections = {
+                    'INCOME': { data: data.income, headers: ['Description', 'Budget', 'Actual'] },
+                    'BILLS': { data: data.bills, headers: ['Paid', 'Due', 'Description', 'Budget', 'Actual'] },
+                    'EXPENSES': { data: data.expenses, headers: ['Description', 'Budget', 'Actual'] },
+                    'SAVINGS': { data: data.savings, headers: ['Description', 'Budget', 'Actual'] },
+                    'DEBT': { data: data.debt, headers: ['Description', 'Due', 'Budget', 'Actual'] },
+                    'EXPENSE TRACKER': { data: data.expenseTracker, headers: ['Date', 'Category', 'Amount', 'Note'] }
+                };
+
+                for (const sectionName in sections) {
+                    const section = sections[sectionName];
+                    const filteredData = section.data.filter(item => Object.values(item).some(val => val !== '' && val !== 0 && val !== false));
+                    
+                    if (filteredData.length > 0) {
+                        csvContent += sectionName + '\r\n';
+                        csvContent += toCSVRow(section.headers) + '\r\n';
+                        filteredData.forEach(item => {
+                            const row = section.headers.map(header => item[header.toLowerCase().replace(' ','')]);
+                            csvContent += toCSVRow(row) + '\r\n';
+                        });
+                        csvContent += '\r\n';
+                    }
+                }
+
+                const encodedUri = encodeURI(csvContent);
+                const link = document.createElement("a");
+                link.setAttribute("href", encodedUri);
+                link.setAttribute("download", `budget-month-${this.getCurrentStorageKey()}.csv`);
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            },
+
+            importMonthFromCSV(file) {
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const text = e.target.result;
+                    const lines = text.split(/\r\n|\n/).map(line => 
+                        line.split(',').map(cell => cell.replace(/^"|"$/g, '').replace(/""/g, '"'))
+                    );
+                    
+                    const newData = getLocalizedDefaultTemplate(); // Start with a fresh localized template
+                    let currentSection = '';
+                    const headersMap = {};
+
+                    // Clear default arrays to fill with imported data
+                    newData.income = [];
+                    newData.bills = [];
+                    newData.expenses = [];
+                    newData.savings = [];
+                    newData.debt = [];
+                    newData.expenseTracker = [];
+
+                    lines.forEach(line => {
+                        if (line.length === 1 && line[0].toUpperCase().startsWith('MONTH:')) return;
+                        
+                        if (line.length === 1 && line[0].toUpperCase() in { 'OVERVIEW':1, 'INCOME':1, 'BILLS':1, 'EXPENSES':1, 'SAVINGS':1, 'DEBT':1, 'EXPENSE TRACKER':1 }) {
+                            currentSection = line[0].toUpperCase();
+                            return;
+                        }
+                        
+                        if (!currentSection || line.every(cell => !cell)) return;
+
+                        if (!headersMap[currentSection]) {
+                            headersMap[currentSection] = line.map(h => h.toLowerCase().replace(' ', ''));
+                            return;
+                        }
+
+                        const headers = headersMap[currentSection];
+                        const item = {};
+                        headers.forEach((header, index) => {
+                            const value = line[index] || '';
+                            if (['budget', 'actual', 'amount', 'startbalance'].includes(header)) {
+                                item[header] = parseFloat(value) || 0;
+                            } else if (header === 'paid') {
+                                item[header] = value.toLowerCase() === 'true';
+                            } else {
+                                item[header] = value;
+                            }
+                        });
+
+                        switch (currentSection) {
+                            case 'OVERVIEW':
+                                if (item.key === 'Start Date') newData.overview.startDate = item.value;
+                                if (item.key === 'End Date') newData.overview.endDate = item.value;
+                                if (item.key === 'Start Balance') newData.overview.startBalance = parseFloat(item.value) || 0;
+                                break;
+                            case 'INCOME': newData.income.push(item); break;
+                            case 'BILLS': newData.bills.push(item); break;
+                            case 'EXPENSES': newData.expenses.push(item); break;
+                            case 'SAVINGS': newData.savings.push(item); break;
+                            case 'DEBT': newData.debt.push(item); break;
+                            case 'EXPENSE TRACKER': newData.expenseTracker.push(item); break;
+                        }
+                    });
+                    
+                    // Ensure tables have a minimum number of rows
+                    const baseTemplate = getLocalizedDefaultTemplate();
+                    Object.keys(baseTemplate).forEach(key => {
+                        if (key !== 'overview' && Array.isArray(newData[key])) {
+                            const originalLength = baseTemplate[key].length;
+                            while(newData[key].length < originalLength) {
+                                // Add a blank version of the first default item
+                                const blankItem = JSON.parse(JSON.stringify(baseTemplate[key][0]));
+                                Object.keys(blankItem).forEach(k => {
+                                    if (typeof blankItem[k] === 'string') blankItem[k] = '';
+                                    if (typeof blankItem[k] === 'number') blankItem[k] = 0;
+                                    if (typeof blankItem[k] === 'boolean') blankItem[k] = false;
+                                });
+                                newData[key].push(blankItem);
+                            }
+                        }
+                    });
+
+                    const currentKey = this.getCurrentStorageKey();
+                    this.allData[currentKey] = newData;
+                    this.updateUIFromCurrentData();
+                    this.saveAllData();
+                    alert(`Data imported successfully for ${currentKey}`);
+                };
+                reader.readAsText(file);
+            },
+
+            resetCurrentMonth() {
+                if (confirm('Reset current month to default template? This will keep descriptions but clear all amounts.')) {
+                    const currentKey = this.getCurrentStorageKey();
+                    this.allData[currentKey] = getLocalizedDefaultTemplate();
+                    this.setDefaultDatesForCurrentMonth(this.allData[currentKey]);
+                    this.updateUIFromCurrentData();
+                    this.saveAllData();
+                }
+            },
+
+            clearAllData() {
+                if (confirm('Clear ALL data for ALL months? This cannot be undone.')) {
+                    if (confirm('Are you absolutely sure? This will delete everything.')) {
+                        localStorage.removeItem('budgetplanner-all-data');
+                        this.allData = {};
+                        this.updateUIFromCurrentData();
+                        alert('All data cleared.');
+                    }
+                }
+            },
+
+            resetAmountsOnly() {
+                if (confirm('Reset all amounts to zero but keep descriptions for current month?')) {
+                    const data = this.getCurrentData();
+                    data.overview.startBalance = 0;
+                    ['income', 'bills', 'expenses', 'savings', 'debt'].forEach(category => {
+                        data[category].forEach(item => {
+                            if (item.hasOwnProperty('budget')) item.budget = 0;
+                            if (item.hasOwnProperty('actual')) item.actual = 0;
+                            if (item.hasOwnProperty('paid')) item.paid = false;
+                        });
+                    });
+                    data.expenseTracker.forEach(item => {
+                        item.amount = 0;
+                    });
+                    this.updateUIFromCurrentData();
+                    this.saveAllData();
+                }
+            },
+            
+            // FIX 2 (Revised): Translates default descriptions from any language to any other language.
+            updateDefaultDescriptions() {
+                // Build a reverse map from any language's default string to the master translation key
+                // e.g., { "Salary": "default_salary", "Gehalt": "default_salary", "Salaire": "default_salary", ... }
+                const anyDefaultToKey = {};
+                for (const lang in TRANSLATIONS) {
+                    for (const key in TRANSLATIONS[lang]) {
+                        if (key.startsWith('default_')) {
+                            const translatedText = TRANSLATIONS[lang][key];
+                            anyDefaultToKey[translatedText] = key;
+                        }
+                    }
+                }
+
+                const currentData = this.getCurrentData();
+                const categories = ['income', 'bills', 'expenses', 'savings', 'debt'];
+
+                categories.forEach(category => {
+                    if (!currentData[category]) return;
+                    currentData[category].forEach(item => {
+                        // Find the master key using the current description, whatever language it's in.
+                        const translationKey = anyDefaultToKey[item.description];
+                        
+                        // If it's a known default description and no money has been entered, translate it.
+                        if (translationKey && (item.budget || 0) === 0 && (item.actual || 0) === 0) {
+                            item.description = translate(translationKey); // translate() uses the *current* global language setting
+                        }
+                    });
+                });
+                
+                if (currentData.expenseTracker) {
+                    currentData.expenseTracker.forEach(item => {
+                        // Use the same universal reverse map for tracker categories and notes.
+                        const catKey = anyDefaultToKey[item.category];
+                        const noteKey = anyDefaultToKey[item.note];
+                        
+                        // If both are recognized default items and the amount is zero, translate them.
+                        if (catKey && noteKey && (item.amount || 0) === 0) {
+                            item.category = translate(catKey);
+                            item.note = translate(noteKey);
+                        }
+                    });
+                }
+                
+                this.updateUIFromCurrentData(); // Re-populate tables with translated text
+                this.saveAllData(); // Save the translated changes
+            },
+
+            resetLocalAmounts(target) {
+                const data = this.getCurrentData();
+                if (data[target]) {
+                    data[target].forEach(item => {
+                        if (item.hasOwnProperty('budget')) item.budget = 0;
+                        if (item.hasOwnProperty('actual')) item.actual = 0;
+                        if (item.hasOwnProperty('amount')) item.amount = 0;
+                        if (item.hasOwnProperty('paid')) item.paid = false;
+                    });
+                    this.updateUIFromCurrentData();
+                    this.saveAllData();
+                }
+            },
+
+            loadShoppingSites() {
+                if (window.embeddedData && window.embeddedData.shoppingSites) {
+                    this.shoppingSites = window.embeddedData.shoppingSites;
+                } else {
+                    const saved = localStorage.getItem('shopping-sites');
+                    this.shoppingSites = saved ? JSON.parse(saved) : [];
+                }
+                this.renderShoppingSites();
+            },
+
+            saveShoppingSites() {
+                localStorage.setItem('shopping-sites', JSON.stringify(this.shoppingSites));
+            },
+
+            addShoppingSite() {
+                const name = this.elements.storeNameInput.value.trim();
+                const url = this.elements.storeUrlInput.value.trim();
+                
+                if (!name || !url) {
+                    alert('Please enter both store name and URL');
+                    return;
+                }
+
+                const finalUrl = url.match(/^https?:\/\//) ? url : `https://${url}`;
+
+                this.shoppingSites.push({ name, url: finalUrl });
+                this.saveShoppingSites();
+                this.renderShoppingSites();
+                
+                this.elements.storeNameInput.value = '';
+                this.elements.storeUrlInput.value = '';
+            },
+
+            removeShoppingSite(index) {
+                this.shoppingSites.splice(index, 1);
+                this.saveShoppingSites();
+                this.renderShoppingSites();
+            },
+
+            renderShoppingSites() {
+                this.elements.shoppingLinks.innerHTML = '';
+                this.shoppingSites.forEach((site, index) => {
+                    const linkDiv = document.createElement('div');
+                    linkDiv.className = 'shopping-link';
+                    linkDiv.innerHTML = `
+                        <a href="${site.url}" target="_blank" rel="noopener noreferrer">${site.name}</a>
+                        <button class="remove-site-btn" data-index="${index}" title="Remove site">×</button>
+                    `;
+                    this.elements.shoppingLinks.appendChild(linkDiv);
+                });
+            },
+
+            populateMonthYearSelectors() {
+                this.elements.monthSelector.innerHTML = '';
+                const monthNames = ["January", "February", "March", "April", "May", "June", 
+                                "July", "August", "September", "October", "November", "December"];
+                monthNames.forEach((month, index) => {
+                    const option = document.createElement('option');
+                    option.value = index;
+                    option.textContent = month;
+                    this.elements.monthSelector.appendChild(option);
+                });
+                this.updateDateSelectors();
+            },
+
+            updateDateSelectors() {
+                this.elements.monthSelector.value = this.currentDate.getMonth();
+                this.elements.yearSelector.value = this.currentDate.getFullYear();
+            },
+
+            createTableRow(tableBody, dataItem, columns) {
+                const row = tableBody.insertRow();
+                columns.forEach(col => {
+                    const cell = row.insertCell();
+                    cell.dataset.key = col.key;
+                    let input;
+
+                    switch (col.type) {
+                        case 'checkbox':
+                            cell.classList.add('checkbox-cell');
+                            input = document.createElement('input');
+                            input.type = 'checkbox';
+                            input.checked = dataItem[col.key] || false;
+                            cell.appendChild(input);
+                            break;
+                        case 'text':
+                            input = document.createElement('input');
+                            input.type = 'text';
+                            input.value = dataItem[col.key] || '';
+                            input.placeholder = col.placeholder || '';
+                            cell.appendChild(input);
+                            break;
+                        case 'number':
+                            const currency = CURRENCIES[currentCurrency] || CURRENCIES.EUR;
+                            cell.innerHTML = `<span class="currency">${currency.symbol}</span>`;
+                            input = document.createElement('input');
+                            input.type = 'number';
+                            input.step = '0.01';
+                            input.value = parseFloat(dataItem[col.key] || 0).toFixed(2);
+                            input.classList.add('number-input');
+                            cell.appendChild(input);
+                            break;
+                        case 'left':
+                            cell.classList.add('left-col');
+                            cell.dataset.key = 'left';
+                            cell.textContent = formatCurrencyNoConvert(0);
+                            break;
+                    }
+                });
+            },
+            
+            populateExpenseTracker() {
+                const tbody = this.elements.expenseTrackerTable;
+                if (!tbody) return;
+                const data = this.getCurrentData();
+                tbody.innerHTML = '';
+                data.expenseTracker.forEach((item, index) => {
+                    const row = tbody.insertRow();
+                    row.innerHTML = `
+                        <td class="col-date"><input type="text" data-key="date" placeholder="dd/mm" value="${item.date || ''}"></td>
+                        <td class="col-category"><input type="text" data-key="category" placeholder="Category" value="${item.category || ''}"></td>
+                        <td class="col-amount"><input type="number" step="0.01" data-key="amount" placeholder="0.00" value="${item.amount > 0 ? item.amount.toFixed(2) : ''}"></td>
+                        <td class="col-note"><input type="text" data-key="note" placeholder="Note" value="${item.note || ''}"></td>
+                        <td class="col-actions"><button class="delete-row-btn" data-index="${index}">×</button></td>
+                    `;
+                });
+            },
+
+            populateTables() {
+                const data = this.getCurrentData();
+                
+                const tableConfigs = {
+                    income: { el: this.elements.incomeTable, data: data.income, cols: [ {key: 'description', type: 'text', placeholder: 'Income Source'}, {key: 'budget', type: 'number'}, {key: 'actual', type: 'number'}] },
+                    bills: { el: this.elements.billsTable, data: data.bills, cols: [ {key: 'paid', type: 'checkbox'}, {key: 'due', type: 'text', placeholder: 'dd/mm'}, {key: 'description', type: 'text', placeholder: 'Bill'}, {key: 'budget', type: 'number'}, {key: 'actual', type: 'number'}] },
+                    expenses: { el: this.elements.expensesTable, data: data.expenses, cols: [ {key: 'description', type: 'text', placeholder: 'Expense'}, {key: 'budget', type: 'number'}, {key: 'actual', type: 'number'}, {key: 'left', type: 'left'}] },
+                    savings: { el: this.elements.savingsTable, data: data.savings, cols: [ {key: 'description', type: 'text', placeholder: 'Savings Goal'}, {key: 'budget', type: 'number'}, {key: 'actual', type: 'number'}] },
+                    debt: { el: this.elements.debtTable, data: data.debt, cols: [ {key: 'description', type: 'text', placeholder: 'Debt'}, {key: 'due', type: 'text', placeholder: 'dd/mm'}, {key: 'budget', type: 'number'}, {key: 'actual', type: 'number'}] },
+                };
+
+                for(const key in tableConfigs) {
+                    const config = tableConfigs[key];
+                    if (config.el) {
+                        config.el.innerHTML = '';
+                        config.data.forEach(item => this.createTableRow(config.el, item, config.cols));
+                    }
+                }
+                this.populateExpenseTracker();
+            },
+            
+            updateCurrentDataFromUI() {
+                const data = this.getCurrentData();
+                
+                data.overview.startDate = this.elements.startDate.value;
+                data.overview.endDate = this.elements.endDate.value;
+                data.overview.startBalance = parseFloat(this.elements.startBalance.value) || 0;
+
+                const readTable = (tbody, isTracker = false) => {
+                    if (!tbody) return [];
+                    return Array.from(tbody.rows).map(row => {
+                        const item = {};
+                        Array.from(row.cells).forEach((cell) => {
+                            const input = cell.querySelector('input');
+                            if (input) {
+                                const key = isTracker ? input.dataset.key : cell.dataset.key;
+                                if (!key) return;
+                                if (input.type === 'checkbox') item[key] = input.checked;
+                                else if (input.type === 'number') item[key] = parseFloat(input.value) || 0;
+                                else item[key] = input.value || '';
+                            }
+                        });
+                        return item;
+                    });
+                };
+                
+                data.income = readTable(this.elements.incomeTable);
+                data.bills = readTable(this.elements.billsTable);
+                data.expenses = readTable(this.elements.expensesTable);
+                data.savings = readTable(this.elements.savingsTable);
+                data.debt = readTable(this.elements.debtTable);
+                data.expenseTracker = readTable(this.elements.expenseTrackerTable, true);
+            },
+            
+            updateUIFromCurrentData() {
+                const data = this.getCurrentData();
+                this.elements.startDate.value = data.overview.startDate;
+                this.elements.endDate.value = data.overview.endDate;
+                this.elements.startBalance.value = data.overview.startBalance.toFixed(2);
+                this.populateTables();
+                this.calculateAndDisplay();
+            },
+            
+            applyTheme(theme) {
+                const currentLayout = this.elements.body.classList.contains('layout-tablet') ? 'tablet'
+                                   : this.elements.body.classList.contains('layout-mobile') ? 'mobile'
+                                   : 'desktop';
+                this.elements.body.className = ''; 
+                this.elements.body.classList.add(`theme-${theme}`, `layout-${currentLayout}`);
+                
+                this.elements.themeToggle.textContent = theme === 'pink' ? '☀️' : '🌙';
+                localStorage.setItem('budget-theme', theme);
+                this.updateCharts(true);
+            },
+            
+            calculateAndDisplay() {
+                const data = this.getCurrentData();
+                
+                const totals = {};
+                ['income', 'bills', 'expenses', 'savings', 'debt'].forEach(category => {
+                    totals[category] = data[category].reduce((acc, item) => {
+                        acc.budget += item.budget || 0;
+                        acc.actual += item.actual || 0;
+                        return acc;
+                    }, { budget: 0, actual: 0 });
+                });
+                
+                const trackerTotal = data.expenseTracker.reduce((acc, item) => acc + (item.amount || 0), 0);
+                const finalExpensesActual = (totals.expenses.actual || 0) + trackerTotal;
+
+                document.getElementById('income-budget-total').textContent = formatCurrencyNoConvert(totals.income.budget);
+                document.getElementById('income-actual-total').textContent = formatCurrencyNoConvert(totals.income.actual);
+                document.getElementById('bills-budget-total').textContent = formatCurrencyNoConvert(totals.bills.budget);
+                document.getElementById('bills-actual-total').textContent = formatCurrencyNoConvert(totals.bills.actual);
+                document.getElementById('expenses-budget-total').textContent = formatCurrencyNoConvert(totals.expenses.budget);
+                document.getElementById('expenses-actual-total').textContent = formatCurrencyNoConvert(finalExpensesActual);
+                document.getElementById('savings-budget-total').textContent = formatCurrencyNoConvert(totals.savings.budget);
+                document.getElementById('savings-actual-total').textContent = formatCurrencyNoConvert(totals.savings.actual);
+                document.getElementById('debt-budget-total').textContent = formatCurrencyNoConvert(totals.debt.budget);
+                document.getElementById('debt-actual-total').textContent = formatCurrencyNoConvert(totals.debt.actual);
+
+                this.elements.expensesTable.querySelectorAll('tr').forEach((row, index) => {
+                    const item = data.expenses[index];
+                    if (item) {
+                        const left = (item.budget || 0) - (item.actual || 0);
+                        const cell = row.querySelector('[data-key="left"]');
+                        if (cell) {
+                            cell.textContent = formatCurrencyNoConvert(left);
+                            cell.classList.toggle('negative', left < 0);
+                        }
+                    }
+                });
+                
+                const startBalance = data.overview.startBalance || 0;
+                document.getElementById('cfs-start-balance-budget').textContent = formatCurrencyNoConvert(startBalance);
+                document.getElementById('cfs-income-budget').textContent = formatCurrencyNoConvert(totals.income.budget);
+                document.getElementById('cfs-income-actual').textContent = formatCurrencyNoConvert(totals.income.actual);
+                document.getElementById('cfs-expenses-budget').textContent = formatCurrencyNoConvert(totals.expenses.budget);
+                document.getElementById('cfs-expenses-actual').textContent = formatCurrencyNoConvert(finalExpensesActual);
+                document.getElementById('cfs-savings-budget').textContent = formatCurrencyNoConvert(totals.savings.budget);
+                document.getElementById('cfs-savings-actual').textContent = formatCurrencyNoConvert(totals.savings.actual);
+                document.getElementById('cfs-debt-budget').textContent = formatCurrencyNoConvert(totals.debt.budget);
+                document.getElementById('cfs-debt-actual').textContent = formatCurrencyNoConvert(totals.debt.actual);
+                document.getElementById('cfs-bills-budget').textContent = formatCurrencyNoConvert(totals.bills.budget);
+                document.getElementById('cfs-bills-actual').textContent = formatCurrencyNoConvert(totals.bills.actual);
+                
+                const totalOutgoingsBudget = totals.expenses.budget + totals.savings.budget + totals.debt.budget + totals.bills.budget;
+                const totalOutgoingsActual = finalExpensesActual + totals.savings.actual + totals.debt.actual + totals.bills.actual;
+                const leftoverBudget = totals.income.budget - totalOutgoingsBudget;
+                const leftoverActual = totals.income.actual - totalOutgoingsActual;
+                
+                document.getElementById('cfs-leftover-budget').textContent = formatCurrencyNoConvert(leftoverBudget);
+                document.getElementById('cfs-leftover-actual').textContent = formatCurrencyNoConvert(leftoverActual);
+                
+                const amountLeft = startBalance + leftoverActual;
+                this.elements.amountLeftToSpend.textContent = formatCurrencyNoConvert(amountLeft);
+
+                this.elements.topIncome.textContent = formatCurrencyNoConvert(totals.income.actual);
+                this.elements.topBills.textContent = formatCurrencyNoConvert(totals.bills.actual);
+                this.elements.topExpenses.textContent = formatCurrencyNoConvert(finalExpensesActual);
+
+                this.updateCharts(false, totals, trackerTotal);
+            },
+
+            initCharts() {
+                const getChartOptions = (isPie = false) => {
+                    const style = getComputedStyle(document.body);
+                    const options = {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { position: isPie ? 'bottom' : 'top', labels: { color: style.getPropertyValue('--text-primary') } },
+                            datalabels: { display: false }
+                        },
+                    };
+                    if (!isPie) {
+                        options.scales = {
+                            x: { ticks: { color: style.getPropertyValue('--text-secondary') }, grid: { color: style.getPropertyValue('--border-color') } },
+                            y: { ticks: { color: style.getPropertyValue('--text-secondary') }, grid: { color: style.getPropertyValue('--border-color') } }
+                        };
+                    }
+                    return options;
+                };
+                
+                const chartLabels = [translate('income'), translate('savings'), translate('expenses'), translate('bills'), translate('debt')];
+                
+                this.charts.incomeDonut = new Chart(document.getElementById('incomeDonutChart'), { type: 'doughnut', data: { labels: [], datasets: [{ data: [], borderWidth: 1 }] }, options: {...getChartOptions(true), cutout: '70%'} });
+                this.charts.budgetVsActual = new Chart(document.getElementById('budgetVsActualChart'), { type: 'bar', data: { labels: chartLabels, datasets: [ { label: translate('budget'), data: [] }, { label: translate('actual'), data: [] } ] }, options: { ...getChartOptions(), indexAxis: 'y' } });
+                this.charts.cashFlowPie = new Chart(document.getElementById('cashFlowPieChart'), { type: 'pie', data: { labels: [translate('income'), translate('expenses'), translate('bills')], datasets: [{ data: [], borderWidth: 1 }] }, options: { ...getChartOptions(true), plugins: { ...getChartOptions(true).plugins, tooltip: { callbacks: { label: function(context) { const label = context.label || ''; const value = context.raw || 0; const total = context.chart.getDatasetMeta(0).total; const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0; return `${label} — ${formatCurrencyNoConvert(value)} (${percentage}%)`; }}}, datalabels: { display: true, formatter: (value, context) => { const total = context.chart.getDatasetMeta(0).total; const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0; return percentage > 5 ? `${percentage}%` : ''; }, color: '#fff', font: { weight: 'bold', size: 12 }}}}});
+            },
+
+            updateCharts(forceRedraw = false, totals = null, trackerTotal = 0) {
+                if (forceRedraw) {
+                    Object.values(this.charts).forEach(chart => { if (chart && typeof chart.destroy === 'function') chart.destroy(); });
+                    this.initCharts();
+                }
+
+                const data = this.getCurrentData();
+                
+                if (!totals) {
+                    totals = {};
+                    ['income', 'bills', 'expenses', 'savings', 'debt'].forEach(category => {
+                        totals[category] = data[category].reduce((acc, item) => ({ budget: acc.budget + (item.budget || 0), actual: acc.actual + (item.actual || 0) }), { budget: 0, actual: 0 });
+                    });
+                    trackerTotal = data.expenseTracker.reduce((acc, item) => acc + (item.amount || 0), 0);
+                }
+                
+                const finalExpensesActual = (totals.expenses.actual || 0) + trackerTotal;
+
+                const style = getComputedStyle(document.body);
+                const colors = { income: style.getPropertyValue('--color-income'), expenses: style.getPropertyValue('--color-expenses'), bills: style.getPropertyValue('--color-bills'), savings: style.getPropertyValue('--color-savings'), debt: style.getPropertyValue('--color-debt'), budget: style.getPropertyValue('--color-budget'), actual: style.getPropertyValue('--color-actual'), placeholder: style.getPropertyValue('--color-placeholder') };
+
+                const incomeData = data.income.filter(i => i.actual > 0);
+                this.charts.incomeDonut.data.labels = incomeData.map(i => i.description);
+                this.charts.incomeDonut.data.datasets[0].data = incomeData.map(i => i.actual);
+                this.charts.incomeDonut.data.datasets[0].backgroundColor = incomeData.map((_, i) => `hsl(${i*60}, 70%, 80%)`);
+                this.charts.incomeDonut.update();
+                
+                this.charts.budgetVsActual.data.datasets[0].data = [totals.income.budget, totals.savings.budget, totals.expenses.budget, totals.bills.budget, totals.debt.budget];
+                this.charts.budgetVsActual.data.datasets[0].backgroundColor = colors.budget;
+                this.charts.budgetVsActual.data.datasets[1].data = [totals.income.actual, totals.savings.actual, finalExpensesActual, totals.bills.actual, totals.debt.actual];
+                this.charts.budgetVsActual.data.datasets[1].backgroundColor = colors.actual;
+                this.charts.budgetVsActual.update();
+                
+                const pieData = [totals.income.actual, finalExpensesActual, totals.bills.actual];
+                const pieTotal = pieData.reduce((a, b) => a + b, 0);
+
+                if (pieTotal > 0) {
+                    this.elements.cashFlowPiePlaceholder.classList.remove('visible');
+                    this.charts.cashFlowPie.data.labels = [translate('income'), translate('expenses'), translate('bills')];
+                    this.charts.cashFlowPie.data.datasets[0].data = pieData;
+                    this.charts.cashFlowPie.data.datasets[0].backgroundColor = [colors.income, colors.expenses, colors.bills];
+                    this.charts.cashFlowPie.options.plugins.datalabels.display = true;
+                } else {
+                    this.elements.cashFlowPiePlaceholder.classList.add('visible');
+                    this.charts.cashFlowPie.data.labels = [''];
+                    this.charts.cashFlowPie.data.datasets[0].data = [1];
+                    this.charts.cashFlowPie.data.datasets[0].backgroundColor = [colors.placeholder];
+                    this.charts.cashFlowPie.options.plugins.datalabels.display = false;
+                }
+                this.charts.cashFlowPie.update();
+            },
+            
+            attachEventListeners() {
+                const E = this.elements;
+
+                E.themeToggle?.addEventListener('click', () => { const newTheme = E.body.classList.contains('theme-pink') ? 'blue' : 'pink'; this.applyTheme(newTheme); });
+                E.languageSelector?.addEventListener('change', (e) => { changeLanguage(e.target.value); });
+                E.currencySelector?.addEventListener('change', (e) => { changeCurrency(e.target.value); });
+                E.prevMonthBtn?.addEventListener('click', () => { this.currentDate.setMonth(this.currentDate.getMonth() - 1); this.updateDateSelectors(); this.updateUIFromCurrentData(); });
+                E.nextMonthBtn?.addEventListener('click', () => { this.currentDate.setMonth(this.currentDate.getMonth() + 1); this.updateDateSelectors(); this.updateUIFromCurrentData(); });
+                E.monthSelector?.addEventListener('change', (e) => { this.currentDate.setMonth(parseInt(e.target.value)); this.updateDateSelectors(); this.updateUIFromCurrentData(); });
+                E.yearSelector?.addEventListener('change', (e) => { this.currentDate.setFullYear(parseInt(e.target.value)); this.updateDateSelectors(); this.updateUIFromCurrentData(); });
+                E.exportHtmlBtn?.addEventListener('click', () => this.exportCompleteApp());
+                E.exportCsvBtn?.addEventListener('click', () => this.exportCurrentMonthCSV());
+                E.importBtn?.addEventListener('click', () => E.importFile.click());
+                E.importFile?.addEventListener('change', (e) => { this.importMonthFromCSV(e.target.files[0]); e.target.value = ''; });
+                E.resetMonthBtn?.addEventListener('click', () => this.resetCurrentMonth());
+                E.clearAllBtn?.addEventListener('click', () => this.clearAllData());
+                E.resetAmountsBtn?.addEventListener('click', () => this.resetAmountsOnly());
+                E.layoutDesktopBtn?.addEventListener('click', () => this.applyLayout('desktop'));
+                E.layoutTabletBtn?.addEventListener('click', () => this.applyLayout('tablet'));
+                E.layoutMobileBtn?.addEventListener('click', () => this.applyLayout('mobile'));
+                E.addSiteBtn?.addEventListener('click', () => this.addShoppingSite());
+
+                document.body.addEventListener('input', (e) => {
+                    if(e.target.closest('.main-container')) {
+                        this.showSaveStatus('saving');
+                        clearTimeout(this.saveTimeout);
+                        this.saveTimeout = setTimeout(() => {
+                            this.saveAllData();
+                            this.calculateAndDisplay();
+                        }, 500);
+                    }
+                });
+
+                document.body.addEventListener('change', (e) => {
+                    if (e.target.closest('.main-container') && !e.target.closest('.expense-tracker-table')) {
+                        this.saveAllData();
+                        this.calculateAndDisplay();
+                    }
+                });
+
+                document.body.addEventListener('click', (e) => {
+                    const t = e.target;
+                    if (!t.closest('.main-container')) return;
+                    
+                    if (t.classList.contains('local-reset-btn')) { this.resetLocalAmounts(t.dataset.target); } 
+                    else if (t.classList.contains('remove-site-btn')) { this.removeShoppingSite(parseInt(t.dataset.index)); }
+                    else if (t.classList.contains('delete-row-btn')) {
+                        const index = parseInt(t.dataset.index);
+                        const data = this.getCurrentData();
+                        data.expenseTracker.splice(index, 1);
+                        this.populateExpenseTracker();
+                        this.saveAllData();
+                        this.calculateAndDisplay();
+                    }
+                });
+
+                document.getElementById('add-expense-row-btn')?.addEventListener('click', () => {
+                    const data = this.getCurrentData();
+                    data.expenseTracker.push({ date: '', category: '', amount: 0, note: '' });
+                    this.populateExpenseTracker();
+                    this.saveAllData();
+                });
+
+                document.addEventListener('keydown', (e) => {
+                    if (e.ctrlKey || e.metaKey) {
+                        if (e.key === 's') { e.preventDefault(); this.saveAllData(); }
+                        if (e.key === 'e') { e.preventDefault(); this.exportCompleteApp(); }
+                    }
+                });
+            },
+        };
+
+        window.App = App;
+        App.init();
+
+    } catch (error) {
+        console.error("Application failed to initialize:", error);
+        alert("An error occurred while loading the budget planner. Please refresh the page or try a different browser.");
+    }
+});
+</script>
+</body>
+</html>
